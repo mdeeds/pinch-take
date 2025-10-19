@@ -27,6 +27,12 @@ export class GeminiChat {
     if (!onMessageCallback) throw new Error('onMessageCallback is required.');
     this.#apiKey = apiKey;
     this.#onMessageCallback = onMessageCallback;
+    this.#systemInstructions = `
+The metronome only plays during song playback.  If the musician needs a "count in" you need
+to add a section at the beginning of the song.  Even if they don't ask for a count-in, it's probably
+a good idea to add it.
+Inserting time into a recording is difficult or impossible, so be judicious about how you add sections.
+`;
   }
 
   /**
@@ -91,7 +97,7 @@ export class GeminiChat {
       if (this.#systemInstructions) {
         // @ts-ignore
         requestBody.system_instruction = {
-          parts: [{ text: this.#systemInstructions }],
+          parts: [{ text: this.#systemInstructions.trim() }],
         };
       }
 
@@ -125,7 +131,7 @@ export class GeminiChat {
       const modelContent = data.candidates?.[0]?.content;
 
       if (!modelContent || !modelContent.parts || modelContent.parts.length === 0) {
-        this.#onMessageCallback('Received an empty response from the model.');
+        this.#onMessageCallback('Done.');
         processing = false;
         continue;
       }

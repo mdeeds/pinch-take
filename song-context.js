@@ -46,20 +46,18 @@ export class SongContext {
   addSection(sectionArgs) {
     const lastSection = this.sections.length > 0 ? this.sections[this.sections.length - 1] : null;
 
-    if (lastSection) {
-      if (sectionArgs.bpm === undefined) {
-        sectionArgs.bpm = lastSection.bpm;
-      }
-      if (sectionArgs.beatsPerMeasure === undefined) {
-        sectionArgs.beatsPerMeasure = lastSection.beatsPerMeasure;
-      }
-    } else {
-      if (sectionArgs.bpm === undefined) {
-        throw new Error('bpm is required for the first section.');
-      }
-      if (sectionArgs.beatsPerMeasure === undefined) {
-        throw new Error('beatsPerMeasure is required for the first section.');
-      }
+    if (sectionArgs.bpm === undefined && lastSection) {
+      sectionArgs.bpm = lastSection.bpm;
+    }
+    if (sectionArgs.beatsPerMeasure === undefined && lastSection) {
+      sectionArgs.beatsPerMeasure = lastSection.beatsPerMeasure;
+    }
+
+    if (sectionArgs.bpm === undefined) {
+      throw new Error('bpm is required for the first section.');
+    }
+    if (sectionArgs.beatsPerMeasure === undefined) {
+      throw new Error('beatsPerMeasure is required for the first section.');
     }
     const section = new SectionContext(/** @type {any} */(sectionArgs));
     this.sections.push(section);
