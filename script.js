@@ -2,13 +2,15 @@
 
 import { GeminiChat } from './gemini-chat.js';
 import metronomeTool from './metronome-tool.js';
+import { SpeechToText } from './speech-to-text.js';
 
 const chatHistoryElement = document.getElementById('chat-history');
 const chatInputElement = /** @type {HTMLInputElement} */ (document.getElementById('chat-input'));
 const sendButton = document.getElementById('send-button');
+const micButton = document.getElementById('mic-button');
 
 async function main() {
-  if (!chatHistoryElement || !chatInputElement || !sendButton) {
+  if (!chatHistoryElement || !chatInputElement || !sendButton || !micButton) {
     throw new Error('Could not find required chat elements in the DOM.');
   }
 
@@ -44,6 +46,21 @@ async function main() {
     const message = chatInputElement.value;
     geminiChat.sendMessage(message);
     chatInputElement.value = '';
+  });
+
+  // --- Speech to Text Integration ---
+
+  const handleSpeechResult = (transcript) => {
+    // Append the transcribed command to the input field
+    chatInputElement.value += ' ' + transcript.trim();
+  };
+
+  const speechToText = new SpeechToText(handleSpeechResult);
+
+  micButton.addEventListener('click', () => {
+    speechToText.start();
+    micButton.textContent = '👂'; // Change icon to indicate listening
+    micButton.style.backgroundColor = '#28a745'; // Green color for active state
   });
 }
 
