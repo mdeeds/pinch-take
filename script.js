@@ -4,6 +4,7 @@ import { GeminiChat } from './gemini-chat.js';
 import { ChatUI } from './chat-ui.js';
 import metronomeTool from './metronome-tool.js';
 import { SpeechToText } from './speech-to-text.js';
+import { TextToSpeech } from './text-to-speech.js';
 
 const chatHistoryElement = document.getElementById('chat-history');
 const chatInputElement = /** @type {HTMLInputElement} */ (document.getElementById('chat-input'));
@@ -41,9 +42,11 @@ async function main() {
   }
 
   const chatUI = new ChatUI(chatHistoryElement);
+  const textToSpeech = new TextToSpeech();
 
   const handleModelMessage = (message) => {
     chatUI.displayMessage(message, 'model-message');
+    textToSpeech.speak(message);
   };
 
   const geminiChat = new GeminiChat(apiKey, handleModelMessage);
