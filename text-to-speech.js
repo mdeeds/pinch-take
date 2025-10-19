@@ -53,6 +53,9 @@ export class TextToSpeech {
       return;
     }
 
+    // Remove common markdown characters so they aren't spoken.
+    text = text.replace(/[*#]/g, '');
+
     if (this.#synth.speaking) {
       this.#synth.cancel(); // Stop any currently speaking utterance before starting a new one.
     }
