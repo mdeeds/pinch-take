@@ -54,4 +54,18 @@ export class TapeDeck {
     this.#metronomeNode.connect(output);
   }
 
+  //////////////////////
+  // TRANSPORT CONTROL
+  // All transport (play, record, stop) operations are specified in "tape time".  This is
+  // the number of seconds from the beginning of the tape.  Interally, the tape deck will convert
+  // this to the audio context time as appropriate.
+  //////////////////////
+
+  setPunchInOut(punchInS, punchOutS) {
+  }
+
+  startPlayback(positionS) {
+
+  }
+
 }
