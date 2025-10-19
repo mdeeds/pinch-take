@@ -1,6 +1,7 @@
 // @ts-check
 
 import { GeminiChat } from './gemini-chat.js';
+import { ChatUI } from './chat-ui.js';
 import metronomeTool from './metronome-tool.js';
 import { SpeechToText } from './speech-to-text.js';
 
@@ -39,13 +40,34 @@ async function main() {
     return;
   }
 
-  const geminiChat = new GeminiChat(apiKey, chatHistoryElement);
+  const chatUI = new ChatUI(chatHistoryElement);
+
+  const handleModelMessage = (message) => {
+    chatUI.displayMessage(message, 'model-message');
+  };
+
+  const geminiChat = new GeminiChat(apiKey, handleModelMessage);
   geminiChat.addTool(metronomeTool);
 
-  sendButton.addEventListener('click', () => {
-    const message = chatInputElement.value;
-    geminiChat.sendMessage(message);
+  /**
+   * Handles sending the user's message from the input field.
+   */
+  const handleSendMessage = () => {
+    const message = chatInputElement.value.trim();
+    if (!message) return; // Don't send empty messages
+
+    chatUI.displayMessage(message, 'user-message');
+    geminiChat.sendMessage(message).catch(console.error);
     chatInputElement.value = '';
+  };
+
+  sendButton.addEventListener('click', handleSendMessage);
+
+  chatInputElement.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault(); // Prevents adding a new line in the input
+      handleSendMessage();
+    }
   });
 
   // --- Speech to Text Integration ---

@@ -9,8 +9,8 @@
 export class GeminiChat {
   /** @type {string} */
   #apiKey;
-  /** @type {HTMLElement} */
-  #chatHistoryElement;
+  /** @type {(message: string) => void} */
+  #onMessageCallback;
   /** @type {string | null} */
   #systemInstructions = null;
   /** @type {ChatMessage[]} */
@@ -19,36 +19,21 @@ export class GeminiChat {
   #tools = new Map();
 
   /**
-   * @param {string} apiKey Your Google AI API key.
-   * @param {HTMLElement} chatHistoryElement The HTML element to display chat messages in.
+   * @param {string} apiKey - Your Google AI API key.
+   * @param {(message: string) => void} onMessageCallback - Callback to handle model responses.
    */
-  constructor(apiKey, chatHistoryElement) {
+  constructor(apiKey, onMessageCallback) {
     if (!apiKey) throw new Error('apiKey is required.');
-    if (!chatHistoryElement) throw new Error('chatHistoryElement is required.');
+    if (!onMessageCallback) throw new Error('onMessageCallback is required.');
     this.#apiKey = apiKey;
-    this.#chatHistoryElement = chatHistoryElement;
+    this.#onMessageCallback = onMessageCallback;
   }
 
   /**
-   * 
-   * @param {Tool} tool 
+   * @param {Tool} tool
    */
   addTool(tool) {
     this.#tools.set(tool.declaration.name, tool);
-  }
-
-  /**
-   * Appends a message to the chat history UI.
-   * @param {string} message The message content.
-   * @param {string} className The CSS class for the message bubble ('user-message' or 'model-message').
-   */
-  displayMessage(message, className) {
-    const messageDiv = document.createElement("div");
-    messageDiv.className = `message ${className}`;
-    messageDiv.textContent = message;
-    this.#chatHistoryElement.appendChild(messageDiv);
-    // Scroll to the bottom of the chat history
-    this.#chatHistoryElement.scrollTop = this.#chatHistoryElement.scrollHeight;
   }
 
   /**
@@ -90,7 +75,6 @@ export class GeminiChat {
    * @param {string} message The user's message.
    */
   async sendMessage(message) {
-    this.displayMessage(message, 'user-message');
     this.conversationHistory.push({ role: 'user', parts: [{ text: message }] });
 
     let processing = true;
@@ -141,7 +125,7 @@ export class GeminiChat {
       const modelContent = data.candidates?.[0]?.content;
 
       if (!modelContent || !modelContent.parts || modelContent.parts.length === 0) {
-        this.displayMessage('Received an empty response from the model.', 'model-message');
+        this.#onMessageCallback('Received an empty response from the model.');
         processing = false;
         continue;
       }
@@ -160,14 +144,11 @@ export class GeminiChat {
         // No tool calls, look for a text response to display
         const textPart = modelContent.parts.find(part => part.text);
         if (textPart) {
-          this.displayMessage(textPart.text, 'model-message');
+          this.#onMessageCallback(textPart.text);
         } else {
           // This can happen if the model *only* returns tool calls that we couldn't handle
           // or if the response is malformed.
-          this.displayMessage(
-            'Model finished but did not provide a text response.',
-            'model-message'
-          );
+          this.#onMessageCallback('Model finished but did not provide a text response.');
         }
         processing = false; // End the loop
       }
