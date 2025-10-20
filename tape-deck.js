@@ -10,6 +10,9 @@ export class TapeDeck {
   /** @type {AudioWorkletNode | null} */
   #metronomeNode = null;
 
+  /**@type {number} */
+  #tapePositionS = 0;
+
   /**
    * 
    * @param {AudioContext} audioCtx 

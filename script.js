@@ -7,6 +7,7 @@ import { TextToSpeech } from './text-to-speech.js';
 import { MetronomeTool } from './metronome-tool.js';
 import { SongTool } from './song-tool.js';
 import { SongContext } from './song-context.js';
+import { TapeDeck } from './tape-deck.js';
 
 const chatHistoryElement = document.getElementById('chat-history');
 const chatInputElement = /** @type {HTMLInputElement} */ (document.getElementById('chat-input'));
@@ -82,6 +83,10 @@ async function main() {
 
   // --- Speech to Text Integration ---
 
+  /**
+   * 
+   * @param {string} transcript 
+   */
   const handleSpeechResult = (transcript) => {
     // Append the transcribed command to the input field
     chatInputElement.value += ' ' + transcript.trim();
@@ -89,10 +94,24 @@ async function main() {
 
   const speechToText = new SpeechToText(handleSpeechResult);
 
-  micButton.addEventListener('click', () => {
+  micButton.addEventListener('click', async () => {
     speechToText.start();
     micButton.textContent = '👂'; // Change icon to indicate listening
     micButton.style.backgroundColor = '#28a745'; // Green color for active state
+
+    try {
+      const audioCtx = new AudioContext();
+      const tapeDeck = new TapeDeck(audioCtx);
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const source = audioCtx.createMediaStreamSource(stream);
+
+      tapeDeck.setInput(source);
+      tapeDeck.setOutput(audioCtx.destination);
+      console.log('TapeDeck initialized and connected to default I/O.');
+    } catch (err) {
+      console.error('Failed to initialize audio components:', err);
+    }
   });
 }
 
