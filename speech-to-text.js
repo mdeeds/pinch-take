@@ -1,3 +1,7 @@
+// @ts-check
+
+const LISTEN_KEYWORD = "monkey";
+
 /**
  * A class that uses the built-in JavaScript SpeechRecognition interface to listen
  * for a keyword and trigger a callback.
@@ -12,7 +16,6 @@ export class SpeechToText {
     this.isListening = false;
     this.isTranscribing = false;
     this.recognition = null;
-    this.keyword = 'pinch';
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -72,12 +75,12 @@ export class SpeechToText {
       }
     }
 
-    const keywordIndex = finalTranscript.toLowerCase().indexOf(this.keyword);
+    const keywordIndex = finalTranscript.toLowerCase().indexOf(LISTEN_KEYWORD);
     if (keywordIndex !== -1) {
-      console.log(`Keyword "${this.keyword}" detected.`);
+      console.log(`Keyword "${LISTEN_KEYWORD}" detected.`);
       this.isTranscribing = true;
       // Remove the keyword and everything before it
-      const command = finalTranscript.substring(keywordIndex + this.keyword.length);
+      const command = finalTranscript.substring(keywordIndex + LISTEN_KEYWORD.length);
       this.onResultCallback(command.trim());
     }
   }
