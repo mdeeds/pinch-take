@@ -15,6 +15,7 @@ class RecordProcessor extends AudioWorkletProcessor {
     this._id = null;
     this._totalSamples = 0;
     this._startTime = 0;
+    this._sendLiveStats = false;
 
     this.port.onmessage = this.handleMessage.bind(this);
   }
@@ -47,6 +48,10 @@ class RecordProcessor extends AudioWorkletProcessor {
         this.sendSamples();
         this._isRecording = false;
       }
+    } else if (method === 'startLiveStats') {
+      this._sendLiveStats = true;
+    } else if (method === 'stopLiveStats') {
+      this._sendLiveStats = false;
     }
   }
 
@@ -87,7 +92,25 @@ class RecordProcessor extends AudioWorkletProcessor {
     const inputChannel = inputs[0]?.[0];
 
     // If there's no input, or we're not set up to record, do nothing.
-    if (!inputChannel || this._punchInFrame === 0) {
+    if (!inputChannel) {
+      return true;
+    }
+
+    if (this._sendLiveStats) {
+      let maxAbsSample = 0.0;
+      let sumSq = 0.0;
+      for (let i = 0; i < inputChannel.length; i++) {
+        const sample = inputChannel[i];
+        maxAbsSample = Math.max(maxAbsSample, Math.abs(sample));
+        sumSq += sample * sample;
+      }
+      const rms = Math.sqrt(sumSq / inputChannel.length);
+      postMessage({ type: 'stats', maxAbsSample, rms });
+    }
+
+
+    // If there's no input, or we're not set up to record, do nothing.
+    if (this._punchInFrame === 0) {
       return true;
     }
 
