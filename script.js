@@ -10,11 +10,34 @@ import { SongContext } from './song-context.js';
 import { TapeDeck } from './tape-deck.js';
 import { MetronomeHandler } from './metronome-handler.js';
 import { TapeDeckTool } from './tape-deck-tool.js';
+import { RecordHandler } from './record-handler.js';
 
 const chatHistoryElement = document.getElementById('chat-history');
 const chatInputElement = /** @type {HTMLInputElement} */ (document.getElementById('chat-input'));
 const sendButton = document.getElementById('send-button');
 const micButton = document.getElementById('mic-button');
+
+/**
+ * 
+ * @param {AudioContext} audioCtx 
+ */
+async function getDefaultAudioInput(audioCtx) {
+  const constraints = {
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+    },
+  };
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    console.log('Acquired audio stream with constraints:', constraints.audio);
+    return audioCtx.createMediaStreamSource(stream);
+  } catch (err) {
+    throw new Error(`Error getting audio input: ${err.message}`);
+  }
+}
 
 async function main() {
   if (!chatHistoryElement || !chatInputElement || !sendButton || !micButton) {
@@ -104,17 +127,19 @@ async function main() {
     try {
       const audioCtx = new AudioContext();
 
+      const source = await getDefaultAudioInput(audioCtx);
+
+      const recorder = await RecordHandler.create(audioCtx);
+      recorder.connectInput(source);
+
       const metronomeHandler = await MetronomeHandler.create(audioCtx, songContext);
       const metronomeTool = new MetronomeTool(metronomeHandler);
       geminiChat.addTool(metronomeTool);
-      const tapeDeck = new TapeDeck(audioCtx, metronomeHandler);
+
+      const tapeDeck = new TapeDeck(audioCtx, metronomeHandler, recorder);
       const tapeDeckTool = new TapeDeckTool(tapeDeck);
       geminiChat.addTool(tapeDeckTool);
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const source = audioCtx.createMediaStreamSource(stream);
-
-      tapeDeck.setInput(source);
       tapeDeck.setOutput(audioCtx.destination);
       console.log('TapeDeck initialized and connected to default I/O.');
     } catch (err) {

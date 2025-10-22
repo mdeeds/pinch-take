@@ -1,17 +1,19 @@
 // @ts-check
 
 import { MetronomeHandler } from "./metronome-handler.js";
+import { RecordHandler } from "./record-handler.js";
 import { SyncTime } from "./sync-time.js";
 
 
 export class TapeDeck {
   /** @type {AudioContext} */
   #audioCtx;
-  /** @type {AudioWorkletNode | null} */
-  #recorderNode = null;
 
   /** @type {MetronomeHandler} */
   #metronome;
+
+  /** @type {RecordHandler} */
+  #recorder;
 
   /**@type {number} */
   #tapePositionS = 0;
@@ -20,28 +22,12 @@ export class TapeDeck {
    * 
    * @param {AudioContext} audioCtx 
    * @param {MetronomeHandler} metronome
+   * @param {RecordHandler} recorder
    */
-  constructor(audioCtx, metronome) {
-    this.#metronome = metronome;
+  constructor(audioCtx, metronome, recorder) {
     this.#audioCtx = audioCtx;
-    this.#audioCtx.audioWorklet.addModule('record-worker.js').then(() => {
-      this.#recorderNode = new AudioWorkletNode(this.#audioCtx, 'record-processor');
-      console.log('RecordProcessor worklet node created.');
-      // You can connect the node or set up message listeners here if needed.
-    }).catch(err => {
-      console.error('Failed to load or instantiate record-worker:', err);
-    });
-  }
-
-  /**
-   * 
-   * @param {AudioNode} input 
-   */
-  setInput(input) {
-    if (!this.#recorderNode) {
-      throw new Error('RecordProcessor node not initialized.');
-    }
-    input.connect(this.#recorderNode);
+    this.#metronome = metronome;
+    this.#recorder = recorder;
   }
 
   /**
