@@ -5,10 +5,6 @@ export class SectionContext {
   /** @type {string} */
   name;
   /** @type {number} */
-  bpm;
-  /** @type {number} */
-  beatsPerMeasure;
-  /** @type {number} */
   measureCount;
   /** @type {number} */
   durationS;
@@ -43,28 +39,33 @@ export class SongContext {
   /** @type {number } */
   songLengthS = 0.0;
 
+  tempo = 120;
+  beatsPerMeasure = 4;
+
   constructor() {
   }
 
+  getJSON() {
+    return {
+      tempo: this.tempo,
+      beatsPerMeasure: this.beatsPerMeasure,
+      sections: this.sections
+    }
+  }
+
   /**
-   * @param {{ name: string; bpm?: number; beatsPerMeasure?: number; measureCount: number; }} sectionArgs
+   * 
+   * @param {{tempo: number, beatsPerMeasure: number}} param0 
+   */
+  setSongTime({ tempo, beatsPerMeasure }) {
+    this.tempo = tempo;
+    this.beatsPerMeasure = beatsPerMeasure;
+  }
+
+  /**
+   * @param {{ name: string; measureCount: number; }} sectionArgs
    */
   addSection(sectionArgs) {
-    const lastSection = this.sections.length > 0 ? this.sections[this.sections.length - 1] : null;
-
-    if (sectionArgs.bpm === undefined && lastSection) {
-      sectionArgs.bpm = lastSection.bpm;
-    }
-    if (sectionArgs.beatsPerMeasure === undefined && lastSection) {
-      sectionArgs.beatsPerMeasure = lastSection.beatsPerMeasure;
-    }
-
-    if (sectionArgs.bpm === undefined) {
-      throw new Error('bpm is required for the first section.');
-    }
-    if (sectionArgs.beatsPerMeasure === undefined) {
-      throw new Error('beatsPerMeasure is required for the first section.');
-    }
     const section = new SectionContext(/** @type {any} */(sectionArgs));
     if (this.sections.length > 0) {
       section.startTimeS = this.songLengthS;
