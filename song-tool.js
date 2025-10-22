@@ -77,10 +77,10 @@ export class SongTool {
         },
         beatsPerMeasure: {
           type: 'INTEGER',
-          description: 'The number of beats per measure.',
+          description: 'The number of beats per measure. Default is 4.',
         },
       },
-      required: [],
+      required: ['tempo'],
     },
   };
 

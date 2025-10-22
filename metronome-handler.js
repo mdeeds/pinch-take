@@ -1,20 +1,15 @@
+import { SongContext } from "./song-context.js";
 
 export class MetronomeSettings {
-  /** @type {number} */
-  tempo;
-  /** @type {number} */
-  beatsPerMeasure;
   /** @type {boolean} */
   onWhenRecording;
   /** @type {boolean} */
   onWhenPlaying;
 
   /**
-   * @param {{tempo: number, beatsPerMeasure: number, onWhenRecording: boolean, onWhenPlaying: boolean}} args
+   * @param {{onWhenRecording: boolean, onWhenPlaying: boolean}} args
    */
   constructor(args) {
-    this.tempo = args.tempo;
-    this.beatsPerMeasure = args.beatsPerMeasure;
     this.onWhenRecording = args.onWhenRecording;
     this.onWhenPlaying = args.onWhenPlaying;
   }
@@ -27,15 +22,19 @@ export class MetronomeHandler {
   /** @type {AudioContext} */
   #audioCtx;
 
-  #settings = new MetronomeSettings({
-    tempo: 120, beatsPerMeasure: 4, onWhenRecording: true, onWhenPlaying: true
+  settings = new MetronomeSettings({
+    onWhenRecording: true, onWhenPlaying: true
   });
+
+  /** @type {SongContext} */
+  #songContext;
 
   /**
    * @param {AudioContext} audioCtx
    */
-  constructor(audioCtx) {
+  constructor(audioCtx, songContext) {
     this.#audioCtx = audioCtx;
+    this.#songContext = songContext;
     this.#audioCtx.audioWorklet.addModule('metronome-worker.js').then(() => {
       this.#metronomeNode = new AudioWorkletNode(this.#audioCtx, 'metronome-processor');
       console.log('MetronomeProcessor worklet node created.');
@@ -47,10 +46,14 @@ export class MetronomeHandler {
   /**
    * 
    * @param {AudioContext} audioCtx 
+   * @param {SongContext} songContext
    * @returns 
    */
-  static async create(audioCtx) {
-    const metronome = new MetronomeHandler(audioCtx);
+  static async create(audioCtx, songContext) {
+    if (!songContext) {
+      throw new Error('SongContext is required.');
+    }
+    const metronome = new MetronomeHandler(audioCtx, songContext);
     await metronome.#audioCtx.audioWorklet.addModule('metronome-worker.js');
     metronome.#metronomeNode = new AudioWorkletNode(metronome.#audioCtx, 'metronome-processor');
     metronome.connect(audioCtx.destination);
@@ -68,13 +71,14 @@ export class MetronomeHandler {
     this.#metronomeNode.connect(output);
   }
 
-  updateSettings(newSettings) {
-    Object.assign(this.#settings, newSettings);
-    this.#metronomeNode.port.postMessage({ method: 'set', detail: this.#settings });
-  }
-
-  getSettings() {
-    return { ...this.#settings };
+  updateTempo(newSettings) {
+    this.#metronomeNode.port.postMessage({
+      method: 'set',
+      detail: {
+        tempo: this.#songContext.tempo,
+        beatsPerMeasure: this.#songContext.beatsPerMeasure,
+      }
+    });
   }
 
   /**
@@ -87,7 +91,13 @@ export class MetronomeHandler {
     if (!position.audioCtxTimeS) {
       position.audioCtxTimeS = this.#audioCtx.currentTime;
     }
-    this.#metronomeNode.port.postMessage({ method: 'set', detail: this.#settings });
+    this.#metronomeNode.port.postMessage({
+      method: 'set',
+      detail: {
+        tempo: this.#songContext.tempo,
+        beatsPerMeasure: this.#songContext.beatsPerMeasure,
+      }
+    });
     this.#metronomeNode.port.postMessage({ method: 'start', detail: position });
   }
 

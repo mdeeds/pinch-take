@@ -104,7 +104,7 @@ async function main() {
     try {
       const audioCtx = new AudioContext();
 
-      const metronomeHandler = await MetronomeHandler.create(audioCtx);
+      const metronomeHandler = await MetronomeHandler.create(audioCtx, songContext);
       const metronomeTool = new MetronomeTool(metronomeHandler);
       geminiChat.addTool(metronomeTool);
       const tapeDeck = new TapeDeck(audioCtx, metronomeHandler);

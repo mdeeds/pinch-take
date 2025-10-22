@@ -17,18 +17,10 @@ export class MetronomeTool {
   /** @type {FunctionDeclaration} */
   declaration = {
     name: 'set_metronome',
-    description: 'Sets the metronome settings.',
+    description: 'Sets the metronome options.  To change the tempo, use set_song_time.',
     parameters: {
       type: 'OBJECT',
       properties: {
-        tempo: {
-          type: 'NUMBER',
-          description: 'The tempo in beats per minute (BPM).',
-        },
-        beatsPerMeasure: {
-          type: 'INTEGER',
-          description: 'The number of beats per measure. Defaults to 4.',
-        },
         onWhenRecording: {
           type: 'BOOLEAN',
           description: 'Whether the metronome is active during recording. Defaults to true.',
@@ -38,7 +30,7 @@ export class MetronomeTool {
           description: 'Whether the metronome is active during playback. Defaults to true.',
         },
       },
-      required: ['tempo'],
+      required: [],
     },
   };
 
@@ -57,10 +49,9 @@ export class MetronomeTool {
    * @returns {Promise<FunctionResponse>}
    */
   async run(args) {
-    this.#metronome.updateSettings(args);
-    const newSettings = this.#metronome.getSettings();
-    console.log(`Setting metronome: `, newSettings);
-    const responseText = `Metronome set to ${JSON.stringify(newSettings)}.`;
+    Object.assign(this.#metronome.settings, args);
+    console.log(`Setting metronome: `, this.#metronome.settings);
+    const responseText = `Metronome set to ${JSON.stringify(this.#metronome.settings)}.`;
     return MakeToolResponse(this, responseText);
   }
 }
