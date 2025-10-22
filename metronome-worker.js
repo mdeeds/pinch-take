@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * @class MetronomeProcessor
  * @extends AudioWorkletProcessor
@@ -7,17 +9,6 @@
  * and can produce an accented beat for the start of a measure.
  */
 class MetronomeProcessor extends AudioWorkletProcessor {
-  // Define the 'beatsPerMinute' parameter.
-  static get parameterDescriptors() {
-    return [{
-      name: 'beatsPerMinute',
-      defaultValue: 120,
-      minValue: 20,
-      maxValue: 240,
-      automationRate: 'a-rate'
-    }];
-  }
-
   constructor() {
     super();
     this._isPlaying = false;
@@ -26,6 +17,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     this._nextTickFrame = 0;
     this._phase = 0;
     this._framesInTick = -1; // -1 means not currently in a tick
+    this._bpm = 120;
 
     // Duration of the tick sound in seconds.
     this.TICK_DURATION_SEC = 0.05;
@@ -38,20 +30,52 @@ class MetronomeProcessor extends AudioWorkletProcessor {
    * @param {MessageEvent} event
    */
   handleMessage(event) {
-    const { method } = event.data;
+    const { method, detail } = event.data;
     console.log(`Metronome received message:`, event.data)
 
-    if (method === 'start') {
-      this._isPlaying = true;
-      this._beatsPerMeasure = beatsPerMeasure || 4;
-      this._beatCount = 0;
-      // Start the first tick on the next processing block.
-      this._nextTickFrame = currentFrame;
-      console.log(`Metronome started with ${this._beatsPerMeasure} beats per measure.`);
-    } else if (method === 'stop') {
-      this._isPlaying = false;
-      console.log('Metronome stopped.');
+    switch (method) {
+      case 'start':
+        this._start(detail);
+        break;
+      case 'set':
+        this._bpm = detail.tempo || this._bpm;
+        this._beatsPerMeasure = detail.beatsPerMeasure || this._beatsPerMeasure;
+        break;
+      case 'stop':
+        this._isPlaying = false;
+        break;
+      default:
+        console.error(`Unknown message method: ${method}`);
     }
+  }
+
+  /**
+   * Starts the metronome with the given settings.
+   * @param {{audioCtxTimeS?: number}} detail
+   */
+  _start(detail) {
+    const { audioCtxTimeS } = detail;
+    this._isPlaying = true;
+    this._beatsPerMeasure = this._beatsPerMeasure || 4;
+    if (audioCtxTimeS !== undefined) {
+      const startFrame = Math.floor(audioCtxTimeS * sampleRate);
+      const secondsPerBeat = 60.0 / this.bpm_;
+      const framesPerBeat = secondsPerBeat * sampleRate;
+
+      if (currentFrame > startFrame) {
+        const framesSinceStart = currentFrame - startFrame;
+        const beatsSinceStart = Math.floor(framesSinceStart / framesPerBeat);
+        this._beatCount = beatsSinceStart % this._beatsPerMeasure;
+        this._nextTickFrame = startFrame + (beatsSinceStart * framesPerBeat);
+      } else {
+        this._beatCount = 0;
+        this._nextTickFrame = startFrame;
+      }
+    } else {
+      this._beatCount = 0;
+      this._nextTickFrame = currentFrame; // Start immediately if no time is given
+    }
+    console.log(`Metronome started. Beat count: ${this._beatCount}, Next tick: ${this._nextTickFrame}`);
   }
 
   /**
@@ -78,7 +102,6 @@ class MetronomeProcessor extends AudioWorkletProcessor {
    */
   process(inputs, outputs, parameters) {
     const outputChannel = outputs[0][0];
-    const bpmValues = parameters.beatsPerMinute;
     const tickDurationFrames = this.TICK_DURATION_SEC * sampleRate;
 
     for (let i = 0; i < outputChannel.length; ++i) {
@@ -97,17 +120,18 @@ class MetronomeProcessor extends AudioWorkletProcessor {
         this._phase = 0;
 
         // Determine the frequency for this beat.
-        const isDownbeat = this._beatCount % this._beatsPerMeasure === 0;
+        const isDownbeat = this._beatCount === 0;
         this._currentTickFrequency = isDownbeat ? 600 : 400;
 
         // Schedule the next tick.
-        // Use the BPM value for the current frame for sample-accurate tempo changes.
-        const bpm = bpmValues.length > 1 ? bpmValues[i] : bpmValues[0];
-        const secondsPerBeat = 60.0 / bpm;
+        const secondsPerBeat = 60.0 / this._bpm;
         const framesPerBeat = secondsPerBeat * sampleRate;
         this._nextTickFrame += framesPerBeat;
 
         this._beatCount++;
+        if (this._beatCount >= this._beatsPerMeasure) {
+          this._beatCount = 0;
+        }
       }
 
       // If we are currently generating a tick sound.

@@ -27,7 +27,7 @@ export class MetronomeHandler {
   /** @type {AudioContext} */
   #audioCtx;
 
-  settings = new MetronomeSettings({
+  #settings = new MetronomeSettings({
     tempo: 120, beatsPerMeasure: 4, onWhenRecording: true, onWhenPlaying: true
   });
 
@@ -68,6 +68,15 @@ export class MetronomeHandler {
     this.#metronomeNode.connect(output);
   }
 
+  updateSettings(newSettings) {
+    Object.assign(this.#settings, newSettings);
+    this.#metronomeNode.port.postMessage({ method: 'set', detail: this.#settings });
+  }
+
+  getSettings() {
+    return { ...this.#settings };
+  }
+
   /**
    * @param {SyncTime} position
    */
@@ -78,9 +87,8 @@ export class MetronomeHandler {
     if (!position.audioCtxTimeS) {
       position.audioCtxTimeS = this.#audioCtx.currentTime;
     }
-    this.#metronomeNode.parameters.get('beatsPerMinute')?.setValueAtTime(
-      this.settings.tempo, position.audioCtxTimeS);
-    this.#metronomeNode.port.postMessage({ method: 'start' });
+    this.#metronomeNode.port.postMessage({ method: 'set', detail: this.#settings });
+    this.#metronomeNode.port.postMessage({ method: 'start', detail: position });
   }
 
   stop() {

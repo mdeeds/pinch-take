@@ -57,12 +57,10 @@ export class MetronomeTool {
    * @returns {Promise<FunctionResponse>}
    */
   async run(args) {
-    const settings = this.#metronome.settings;
-    Object.assign(settings, args);
-    console.log(`Setting metronome: `, this.#metronome.settings);
-
-    const responseText = `Metronome set to ${JSON.stringify(settings)}.`;
-
+    this.#metronome.updateSettings(args);
+    const newSettings = this.#metronome.getSettings();
+    console.log(`Setting metronome: `, newSettings);
+    const responseText = `Metronome set to ${JSON.stringify(newSettings)}.`;
     return MakeToolResponse(this, responseText);
   }
 }
