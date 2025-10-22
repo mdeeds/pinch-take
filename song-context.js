@@ -65,4 +65,17 @@ export class SongContext {
     this.songLengthS += section.durationS();
   }
 
+  /**
+   * @param {number} tapeTimeS
+   * @returns {SectionContext}
+   */
+  getSectionAtTime(tapeTimeS) {
+    for (let i = 1; i < this.startTimesS.length; i++) {
+      if (tapeTimeS < this.startTimesS[i]) {
+        return this.sections[i - 1];
+      }
+    }
+    return this.sections[this.sections.length - 1];
+  }
+
 }

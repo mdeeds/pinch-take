@@ -38,7 +38,8 @@ class MetronomeProcessor extends AudioWorkletProcessor {
    * @param {MessageEvent} event
    */
   handleMessage(event) {
-    const { method, beatsPerMeasure } = event.data;
+    const { method } = event.data;
+    console.log(`Metronome received message:`, event.data)
 
     if (method === 'start') {
       this._isPlaying = true;

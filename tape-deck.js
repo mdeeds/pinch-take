@@ -1,5 +1,7 @@
 // @ts-check
 
+import { MetronomeHandler } from "./metronome-handler.js";
+import { SyncTime } from "./sync-time.js";
 
 
 export class TapeDeck {
@@ -7,8 +9,9 @@ export class TapeDeck {
   #audioCtx;
   /** @type {AudioWorkletNode | null} */
   #recorderNode = null;
-  /** @type {AudioWorkletNode | null} */
-  #metronomeNode = null;
+
+  /** @type {MetronomeHandler} */
+  #metronome;
 
   /**@type {number} */
   #tapePositionS = 0;
@@ -16,8 +19,10 @@ export class TapeDeck {
   /**
    * 
    * @param {AudioContext} audioCtx 
+   * @param {MetronomeHandler} metronome
    */
-  constructor(audioCtx) {
+  constructor(audioCtx, metronome) {
+    this.#metronome = metronome;
     this.#audioCtx = audioCtx;
     this.#audioCtx.audioWorklet.addModule('record-worker.js').then(() => {
       this.#recorderNode = new AudioWorkletNode(this.#audioCtx, 'record-processor');
@@ -25,13 +30,6 @@ export class TapeDeck {
       // You can connect the node or set up message listeners here if needed.
     }).catch(err => {
       console.error('Failed to load or instantiate record-worker:', err);
-    });
-
-    this.#audioCtx.audioWorklet.addModule('metronome-worker.js').then(() => {
-      this.#metronomeNode = new AudioWorkletNode(this.#audioCtx, 'metronome-processor');
-      console.log('MetronomeProcessor worklet node created.');
-    }).catch(err => {
-      console.error('Failed to load or instantiate metronome-worker:', err);
     });
   }
 
@@ -51,10 +49,6 @@ export class TapeDeck {
    * @param {AudioNode} output 
    */
   setOutput(output) {
-    if (!this.#metronomeNode) {
-      throw new Error('MetronomeProcessor node not initialized.');
-    }
-    this.#metronomeNode.connect(output);
   }
 
   //////////////////////
@@ -64,11 +58,19 @@ export class TapeDeck {
   // this to the audio context time as appropriate.
   //////////////////////
 
-  setPunchInOut(punchInS, punchOutS) {
+  // setPunchInOut(punchInS, punchOutS) {
+  // }
+
+  /**
+   * 
+   * @param {SyncTime} position 
+   */
+  startPlayback(position) {
+    this.#metronome.start(position);
   }
 
-  startPlayback(positionS) {
-
+  stop() {
+    this.#metronome.stop();
   }
 
 }

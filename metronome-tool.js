@@ -1,6 +1,7 @@
 // @ts-check
 
 import { MakeToolResponse } from './tool.js';
+import { MetronomeSettings, MetronomeHandler } from './metronome-handler.js';
 
 /**
  * @typedef {import('./tool.js').Tool} Tool
@@ -41,37 +42,27 @@ export class MetronomeTool {
     },
   };
 
-  constructor() {
-    // No arguments for now, but ready for future dependencies.
+  /** @type {MetronomeHandler} */
+  #metronome;
+
+  /**
+   * @param {MetronomeHandler} metronome
+   */
+  constructor(metronome) {
+    this.#metronome = metronome;
   }
 
   /**
-   * @param {any} args
+   * @param {MetronomeSettings} args
    * @returns {Promise<FunctionResponse>}
    */
   async run(args) {
-    // In a real application, this is where you would interact with the
-    // metronome service/API of your Digital Audio Workstation.
+    const settings = this.#metronome.settings;
+    Object.assign(settings, args);
+    console.log(`Setting metronome: `, this.#metronome.settings);
 
-    const {
-      tempo,
-      beatsPerMeasure = 4,
-      onWhenRecording = true,
-      onWhenPlaying = true,
-    } = args;
-
-    console.log(`Setting metronome:
-      Tempo: ${tempo} BPM
-      Beats per measure: ${beatsPerMeasure}
-      On during recording: ${onWhenRecording}
-      On during playback: ${onWhenPlaying}`);
-
-    const responseText = `Metronome set to ${tempo} BPM, ${beatsPerMeasure} beats per measure.`;
+    const responseText = `Metronome set to ${JSON.stringify(settings)}.`;
 
     return MakeToolResponse(this, responseText);
   }
 }
-
-const metronomeTool = new MetronomeTool();
-
-export default metronomeTool;

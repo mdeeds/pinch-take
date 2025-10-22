@@ -8,6 +8,8 @@ import { MetronomeTool } from './metronome-tool.js';
 import { SongTool } from './song-tool.js';
 import { SongContext } from './song-context.js';
 import { TapeDeck } from './tape-deck.js';
+import { MetronomeHandler } from './metronome-handler.js';
+import { TapeDeckTool } from './tape-deck-tool.js';
 
 const chatHistoryElement = document.getElementById('chat-history');
 const chatInputElement = /** @type {HTMLInputElement} */ (document.getElementById('chat-input'));
@@ -53,8 +55,6 @@ async function main() {
   };
 
   const geminiChat = new GeminiChat(apiKey, handleModelMessage);
-  const metronomeTool = new MetronomeTool();
-  geminiChat.addTool(metronomeTool);
   const songContext = new SongContext();
   const songTool = new SongTool(songContext);
   geminiChat.addTool(songTool);
@@ -101,7 +101,13 @@ async function main() {
 
     try {
       const audioCtx = new AudioContext();
-      const tapeDeck = new TapeDeck(audioCtx);
+
+      const metronomeHandler = await MetronomeHandler.create(audioCtx);
+      const metronomeTool = new MetronomeTool(metronomeHandler);
+      geminiChat.addTool(metronomeTool);
+      const tapeDeck = new TapeDeck(audioCtx, metronomeHandler);
+      const tapeDeckTool = new TapeDeckTool(tapeDeck);
+      geminiChat.addTool(tapeDeckTool);
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const source = audioCtx.createMediaStreamSource(stream);
