@@ -10,6 +10,10 @@ export class SectionContext {
   beatsPerMeasure;
   /** @type {number} */
   measureCount;
+  /** @type {number} */
+  durationS;
+  /** @type {number} */
+  startTimeS;
 
   /**
    * @param {{ name: string; bpm: number; beatsPerMeasure: number; measureCount: number; }} args
@@ -19,9 +23,11 @@ export class SectionContext {
     this.bpm = args.bpm;
     this.beatsPerMeasure = args.beatsPerMeasure;
     this.measureCount = args.measureCount;
+    this.durationS = this.getDurationS();
+    this.startTimeS = 0.0;
   }
 
-  durationS() {
+  getDurationS() {
     return this.measureCount * this.beatsPerMeasure * 60 / this.bpm;
   }
 }
@@ -60,9 +66,12 @@ export class SongContext {
       throw new Error('beatsPerMeasure is required for the first section.');
     }
     const section = new SectionContext(/** @type {any} */(sectionArgs));
+    if (this.sections.length > 0) {
+      section.startTimeS = this.songLengthS;
+    }
     this.sections.push(section);
     this.startTimesS.push(this.songLengthS);
-    this.songLengthS += section.durationS();
+    this.songLengthS += section.durationS;
   }
 
   /**
