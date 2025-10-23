@@ -2,9 +2,12 @@
 
 /**
  * @typedef {Object} SampleData
+ * @property {'samples'} type
  * @property {Float32Array} samples
- * @property {number} startTime
- * @property {any} id
+ * @property {number} rms
+ * @property {number} peak
+ * @property {number} startFrame
+ * @property {number} startTimeS
  */
 
 /**
@@ -16,14 +19,17 @@ export class RecordHandler {
   #recorderNode = null;
   /** @type {AudioContext} */
   #audioCtx;
-  /** @type {SampleCallback | null} */
-  onSamples = null;
+  /** @type {SampleCallback[]} */
+  onSamples = [];
+  /** @type {number} */
+  #latencyCompensationFrames = 0;
 
   /**
    * @param {AudioContext} audioCtx
    */
   constructor(audioCtx) {
     this.#audioCtx = audioCtx;
+    this.onSamples = [];
   }
 
   /**
@@ -44,8 +50,15 @@ export class RecordHandler {
    * @param {MessageEvent} event
    */
   #handleMessage(event) {
-    if (event.data.type === 'sample' && this.onSamples) {
-      this.onSamples(event.data);
+    if (event.data.type === 'samples') {
+      // Apply latency compensation
+      const data = event.data;
+      data.startFrame -= this.#latencyCompensationFrames;
+      data.startTimeS -= this.#latencyCompensationFrames / this.#audioCtx.sampleRate;
+
+      for (const callback of this.onSamples) {
+        callback(event.data);
+      }
     }
   }
 
@@ -61,19 +74,20 @@ export class RecordHandler {
   }
 
   /**
-   * @param {{id: any, in: number, out: number}} args
+   * Sets the latency compensation for recorded audio.
+   * @param {number} seconds - The latency to compensate for, in seconds.
+   * A positive value means the recorded audio is arriving late and its timestamp should be adjusted backwards.
    */
-  punch(args) {
-    if (!this.#recorderNode) {
-      throw new Error('RecordProcessor node not initialized.');
-    }
-    this.#recorderNode.port.postMessage({ method: 'punch', ...args });
+  setLatencyCompensation(seconds) {
+    this.#latencyCompensationFrames = Math.round(seconds * this.#audioCtx.sampleRate);
+    console.log(`Latency compensation set to ${this.#latencyCompensationFrames} frames (${seconds}s)`);
   }
 
-  stop() {
-    if (!this.#recorderNode) {
-      throw new Error('RecordProcessor node not initialized.');
-    }
-    this.#recorderNode.port.postMessage({ method: 'stop' });
+  /**
+   * Adds a callback function to be invoked when new audio samples are received.
+   * @param {SampleCallback} callback
+   */
+  addSampleCallback(callback) {
+    this.onSamples.push(callback);
   }
 }
