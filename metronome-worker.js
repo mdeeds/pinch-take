@@ -131,7 +131,6 @@ class MetronomeProcessor extends AudioWorkletProcessor {
         this._beatCount++;
         if (this._beatCount >= this._beatsPerMeasure) {
           this._beatCount = 0;
-          console.log('Downbeat.');
         }
       }
 

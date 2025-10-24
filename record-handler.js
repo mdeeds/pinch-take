@@ -22,6 +22,9 @@ export class RecordHandler {
   #audioCtx;
   /** @type {SampleCallback[]} */
   onSamples = [];
+
+  static LOCAL_STOARGE_LATENCY_COMPENSATION_KEY = "record-handler-latency-compensation";
+
   /** @type {number} */
   #latencyCompensationFrames = 0;
 
@@ -43,6 +46,11 @@ export class RecordHandler {
     await audioCtx.audioWorklet.addModule('record-worker.js');
     handler.#recorderNode = new AudioWorkletNode(audioCtx, 'record-processor');
     handler.#recorderNode.port.onmessage = handler.#handleMessage.bind(handler);
+    const storedCompensation = localStorage.getItem(RecordHandler.LOCAL_STOARGE_LATENCY_COMPENSATION_KEY);
+    if (storedCompensation) {
+      console.log('Loaded compensation: ', storedCompensation);
+      handler.setLatencyCompensation(parseFloat(storedCompensation));
+    }
     console.log('RecordProcessor worklet node created.');
     return handler;
   }
@@ -81,7 +89,15 @@ export class RecordHandler {
    */
   setLatencyCompensation(seconds) {
     this.#latencyCompensationFrames = Math.round(seconds * this.#audioCtx.sampleRate);
-    console.log(`Latency compensation set to ${this.#latencyCompensationFrames} frames (${seconds}s)`);
+    localStorage.setItem(RecordHandler.LOCAL_STOARGE_LATENCY_COMPENSATION_KEY, seconds.toString());
+  }
+
+  /**
+   * Gets the current latency compensation in seconds.
+   * @returns {number}
+   */
+  getLatencyCompensation() {
+    return this.#latencyCompensationFrames / this.#audioCtx.sampleRate;
   }
 
   /**

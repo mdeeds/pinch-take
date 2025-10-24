@@ -2,6 +2,7 @@
 
 import { RecordHandler } from "./record-handler.js";
 import { SongContext } from "./song-context.js";
+import { TapeDeck, TransportEvent } from "./tape-deck.js";
 /** @typedef {import('./record-handler.js').SampleData} SampleData */
 
 export class BeatVU {
@@ -17,18 +18,24 @@ export class BeatVU {
   #recordHandler;
   /** @type {SongContext} */
   #songContext;
+  /** @type {TapeDeck} */
+  #tapeDeck;
 
   #bpm = 120;
   #beatsPerMeasure = 4;
   #totalDurationS = 2.0;
+
+  /** @type {number | null} */
+  #tapeZeroTimeS = null;
 
   /**
    * @param {AudioContext} audioCtx
    * @param {HTMLElement} container
    * @param {RecordHandler} recordHandler
    * @param {SongContext} songContext
+   * @param {TapeDeck} tapeDeck
    */
-  constructor(audioCtx, container, recordHandler, songContext) {
+  constructor(audioCtx, container, recordHandler, songContext, tapeDeck) {
     this.#audioCtx = audioCtx;
     this.#container = container;
     this.#recordHandler = recordHandler;
@@ -37,6 +44,7 @@ export class BeatVU {
     this.#canvas = document.createElement('canvas');
     this.#canvas.width = 1024;
     this.#canvas.height = 100;
+    this.#canvas.tabIndex = 0; // Make canvas focusable
     this.#container.appendChild(this.#canvas);
     const ctx = this.#canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) {
@@ -57,6 +65,10 @@ export class BeatVU {
 
     this.#recordHandler.addSampleCallback(this.#handleSamples.bind(this));
     this.#animate();
+
+    this.#tapeDeck = tapeDeck;
+    this.#tapeDeck.onTransportEvent(this.#handleTransportEvent.bind(this));
+    document.addEventListener('keydown', this.#handleKeyDown.bind(this));
   }
 
   /**
@@ -86,12 +98,15 @@ export class BeatVU {
    * @param {SampleData} data
    */
   #handleSamples({ startTimeS, samples, rms, peak, maxPeakIndex }) {
+    if (!this.#tapeZeroTimeS) {
+      return;
+    }
     // @ts-ignore - #audioCtx is private but we need it here.
     const sampleRate = this.#audioCtx.sampleRate;
 
     // --- 1. Draw the RMS rectangle ---
     const rmsY = this.#valueToY(rms);
-    const timeOnCanvasS = startTimeS % this.#totalDurationS;
+    const timeOnCanvasS = (startTimeS - this.#tapeZeroTimeS) % this.#totalDurationS;
     const rmsX = (timeOnCanvasS / this.#totalDurationS) * this.#canvas.width;
     const durationS = samples.length / sampleRate;
     const rectWidth = (durationS / this.#totalDurationS) * this.#canvas.width;
@@ -106,6 +121,18 @@ export class BeatVU {
     const peakX = (peakTimeOnCanvasS / this.#totalDurationS) * this.#canvas.width;
     this.#ctx.fillStyle = 'rgba(128, 255, 0, 0.75)';
     this.#ctx.fillRect(peakX, peakY, 1, 3); // Center the 3x3 dot on the peak's x-position
+  }
+
+  /**
+   * @param {TransportEvent} event
+   */
+  #handleTransportEvent(event) {
+    if (event.transportAction === 'play') {
+      // Calculate the audio context time that corresponds to the very beginning of the tape (time 0).
+      this.#tapeZeroTimeS = event.audioCtxTimeS - event.tapeTimeS;
+    } else if (event.transportAction === 'stop') {
+      this.#tapeZeroTimeS = null;
+    }
   }
 
   #animate() {
@@ -126,7 +153,52 @@ export class BeatVU {
     // Put the modified image data back onto the canvas
     this.#ctx.putImageData(imageData, 0, 0);
 
+    // Draw beat and measure lines
+    if (this.#tapeZeroTimeS !== null) {
+      // Draw static beat and measure lines, since the canvas represents one measure.
+      for (let i = 0; i < this.#beatsPerMeasure; i++) {
+        const x = (i / this.#beatsPerMeasure) * this.#canvas.width;
+
+        const isMeasureLine = (i === 0);
+        this.#ctx.fillStyle = isMeasureLine ? '#fff' : '#333';
+        this.#ctx.fillRect(x, 0, 1, this.#canvas.height);
+      }
+    }
     // Request the next frame
     requestAnimationFrame(this.#animate.bind(this));
+  }
+
+  /**
+   * @param {KeyboardEvent} event
+   */
+  #handleKeyDown(event) {
+    // Only adjust latency if shift is held down.
+    if (!event.shiftKey) {
+      return;
+    }
+
+    let latencyChangeMs = 0;
+    switch (event.key) {
+      case 'ArrowLeft':
+        latencyChangeMs = -1;
+        break;
+      case 'ArrowRight':
+        latencyChangeMs = 1;
+        break;
+      case 'ArrowDown':
+        latencyChangeMs = -10;
+        break;
+      case 'ArrowUp':
+        latencyChangeMs = 10;
+        break;
+      default:
+        return; // Do nothing for other keys
+    }
+
+    event.preventDefault(); // Prevent scrolling, etc.
+
+    const currentLatencyS = this.#recordHandler.getLatencyCompensation();
+    const newLatencyS = currentLatencyS + (latencyChangeMs / 1000);
+    this.#recordHandler.setLatencyCompensation(newLatencyS);
   }
 }

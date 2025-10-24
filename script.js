@@ -133,12 +133,11 @@ async function main() {
       const recorder = await RecordHandler.create(audioCtx);
       recorder.connectInput(source);
 
-      const vu = new BeatVU(audioCtx, document.body, recorder, songContext);
-      // vu.setTiming({ bpm: 120, beatsPerMeasure: 4 }); // This is now handled inside BeatVU
-
       const tapeDeck = new TapeDeck(audioCtx, recorder);
       const tapeDeckTool = new TapeDeckTool(tapeDeck);
       geminiChat.addTool(tapeDeckTool);
+
+      const vu = new BeatVU(audioCtx, document.body, recorder, songContext, tapeDeck);
 
       const metronomeHandler = await MetronomeHandler.create(
         audioCtx, songContext, tapeDeck);
