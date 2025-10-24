@@ -29,7 +29,6 @@ export class SectionContext {
 }
 
 export class SongContext {
-
   /** @type {SectionContext[]} */
   sections = [];
 
@@ -85,8 +84,8 @@ export class SongContext {
    * @param {{tempo: number, beatsPerMeasure: number}} param0 
    */
   setSongTime({ tempo, beatsPerMeasure }) {
-    this.tempo = tempo;
-    this.beatsPerMeasure = beatsPerMeasure;
+    this.tempo = tempo || this.tempo;
+    this.beatsPerMeasure = beatsPerMeasure || this.beatsPerMeasure;
     this.#recalculateSections();
     for (const callback of this.#onSongTimeChangedCallbacks) {
       callback(this);

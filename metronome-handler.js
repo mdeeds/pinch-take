@@ -1,6 +1,5 @@
 import { SongContext } from "./song-context.js";
 import { TapeDeck, TransportEvent } from "./tape-deck.js";
-import { SyncTime } from "./sync-time.js";
 
 export class MetronomeSettings {
   /** @type {boolean} */
@@ -74,10 +73,7 @@ export class MetronomeHandler {
    */
   #handleTransportEvent(event) {
     if (event.transportAction === 'play') {
-      const position = new SyncTime();
-      position.audioCtxTimeS = event.audioCtxTimeS;
-      position.tapeTimeS = event.tapeTimeS;
-      this.start(position);
+      this.start(event.audioCtxTimeS);
     } else if (event.transportAction === 'stop') {
       this.stop();
     }
@@ -105,14 +101,14 @@ export class MetronomeHandler {
   }
 
   /**
-   * @param {SyncTime} position
+   * @param {number} audioContextTimeS
    */
-  start(position) {
+  start(audioContextTimeS) {
     if (!this.#metronomeNode) {
       throw new Error('MetronomeProcessor node not initialized.');
     }
-    if (!position.audioCtxTimeS) {
-      position.audioCtxTimeS = this.#audioCtx.currentTime;
+    if (!audioContextTimeS) {
+      audioContextTimeS = this.#audioCtx.currentTime;
     }
     this.#metronomeNode.port.postMessage({
       method: 'set',
@@ -121,7 +117,7 @@ export class MetronomeHandler {
         beatsPerMeasure: this.#songContext.beatsPerMeasure,
       }
     });
-    this.#metronomeNode.port.postMessage({ method: 'start', detail: position });
+    this.#metronomeNode.port.postMessage({ method: 'start', detail: { audioContextTimeS } });
   }
 
   stop() {

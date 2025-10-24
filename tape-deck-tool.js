@@ -2,7 +2,6 @@
 
 import { MakeToolResponse } from './tool.js';
 import { TapeDeck } from './tape-deck.js';
-import { SyncTime } from './sync-time.js';
 
 /**
  * @typedef {import('./tool.js').Tool} Tool
@@ -49,7 +48,7 @@ export class TapeDeckTool {
     let responseText = '';
     if (args.action === 'play') {
       // For now, we'll just play from the beginning.
-      this.#tapeDeck.startPlayback(new SyncTime());
+      this.#tapeDeck.startPlayback(0);
       responseText = 'Playback started.';
     } else if (args.action === 'stop') {
       this.#tapeDeck.stop();

@@ -50,15 +50,15 @@ class MetronomeProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Starts the metronome with the given settings.
-   * @param {{audioCtxTimeS?: number}} detail
+   * Starts the metronome with a downbeat at the specified audioContextTimeS
+   * @param {{audioContextTimeS?: number}} detail
    */
   _start(detail) {
-    const { audioCtxTimeS } = detail;
+    const { audioContextTimeS } = detail;
     this._isPlaying = true;
     this._beatsPerMeasure = this._beatsPerMeasure || 4;
-    if (audioCtxTimeS !== undefined) {
-      const startFrame = Math.floor(audioCtxTimeS * sampleRate);
+    if (audioContextTimeS !== undefined) {
+      const startFrame = Math.floor(audioContextTimeS * sampleRate);
       const secondsPerBeat = 60.0 / this.bpm_;
       const framesPerBeat = secondsPerBeat * sampleRate;
 
@@ -131,6 +131,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
         this._beatCount++;
         if (this._beatCount >= this._beatsPerMeasure) {
           this._beatCount = 0;
+          console.log('Downbeat.');
         }
       }
 
@@ -142,10 +143,8 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       } else {
         // Output silence.
         outputChannel[i] = 0;
-        // Reset tick state if it just finished.
-        if (this._framesInTick !== -1) {
-          this._framesInTick = -1;
-        }
+        // Reset tick state.
+        this._framesInTick = -1;
       }
     }
 

@@ -91,12 +91,15 @@ export class SpeechToText {
   onEnd() {
     if (this.isListening) {
       this.isTranscribing = false;
-      console.log('Speech recognition service ended, restarting...');
+      // console.log('Speech recognition service ended, restarting...');
       this.recognition.start();
     }
   }
 
   onError(event) {
-    console.error('Speech recognition error:', event.error);
+    // It's fine if the user isn't talking right now.  Just ignore that error.
+    if (event.error != 'no-speech') {
+      console.error('Speech recognition error:', event.error);
+    }
   }
 }
