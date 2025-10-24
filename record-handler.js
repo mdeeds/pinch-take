@@ -6,6 +6,7 @@
  * @property {Float32Array} samples
  * @property {number} rms
  * @property {number} peak
+ * @property {number} maxPeakIndex
  * @property {number} startFrame
  * @property {number} startTimeS
  */

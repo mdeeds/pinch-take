@@ -2,32 +2,44 @@
 
 import { MetronomeHandler } from "./metronome-handler.js";
 import { RecordHandler } from "./record-handler.js";
-import { SyncTime } from "./sync-time.js";
 
+export class TransportEvent {
+  /** @type {string} */
+  transportAction = 'play';
+  /** @type {number} */
+  audioCtxTimeS = 0;
+  /** @type {number} */
+  tapeTimeS = 0;
+}
 
 export class TapeDeck {
   /** @type {AudioContext} */
   #audioCtx;
 
-  /** @type {MetronomeHandler} */
-  #metronome;
-
   /** @type {RecordHandler} */
   #recorder;
 
-  /**@type {number} */
-  #tapePositionS = 0;
+  /** @type {number} */
+  #tapeZeroTime = 0;
+
+  /** @type {((event: TransportEvent) => void)[]} */
+  #onTransportEventCallbacks = [];
 
   /**
    * 
    * @param {AudioContext} audioCtx 
-   * @param {MetronomeHandler} metronome
    * @param {RecordHandler} recorder
    */
-  constructor(audioCtx, metronome, recorder) {
+  constructor(audioCtx, recorder) {
     this.#audioCtx = audioCtx;
-    this.#metronome = metronome;
     this.#recorder = recorder;
+  }
+
+  /**
+   * @param {(event: TransportEvent) => void} callback
+   */
+  onTransportEvent(callback) {
+    this.#onTransportEventCallbacks.push(callback);
   }
 
   /**
@@ -44,19 +56,34 @@ export class TapeDeck {
   // this to the audio context time as appropriate.
   //////////////////////
 
-  // setPunchInOut(punchInS, punchOutS) {
-  // }
-
   /**
    * 
-   * @param {SyncTime} position 
+   * @param {number} tapeTimeS
    */
-  startPlayback(position) {
-    this.#metronome.start(position);
+  startPlayback(tapeTimeS) {
+    const nowTimeS = this.#audioCtx.currentTime;
+    const event = new TransportEvent();
+    event.transportAction = 'play';
+    event.audioCtxTimeS = nowTimeS
+    event.tapeTimeS = tapeTimeS;
+
+    this.#tapeZeroTime = nowTimeS - tapeTimeS;
+
+    for (const callback of this.#onTransportEventCallbacks) {
+      callback(event);
+    }
   }
 
   stop() {
-    this.#metronome.stop();
+    const nowTimeS = this.#audioCtx.currentTime;
+    const tapeTimeS = nowTimeS - this.#tapeZeroTime;
+    const event = new TransportEvent();
+    event.transportAction = 'stop';
+    event.audioCtxTimeS = nowTimeS;
+    event.tapeTimeS = tapeTimeS;
+    for (const callback of this.#onTransportEventCallbacks) {
+      callback(event);
+    }
   }
 
 }

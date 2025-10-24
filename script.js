@@ -11,6 +11,7 @@ import { TapeDeck } from './tape-deck.js';
 import { MetronomeHandler } from './metronome-handler.js';
 import { TapeDeckTool } from './tape-deck-tool.js';
 import { RecordHandler } from './record-handler.js';
+import { BeatVU } from './beat-vu.js';
 
 const chatHistoryElement = document.getElementById('chat-history');
 const chatInputElement = /** @type {HTMLInputElement} */ (document.getElementById('chat-input'));
@@ -132,13 +133,18 @@ async function main() {
       const recorder = await RecordHandler.create(audioCtx);
       recorder.connectInput(source);
 
-      const metronomeHandler = await MetronomeHandler.create(audioCtx, songContext);
+      const vu = new BeatVU(audioCtx, document.body, recorder);
+      vu.setTiming({ bpm: 120, beatsPerMeasure: 4 });
+
+      const tapeDeck = new TapeDeck(audioCtx, recorder);
+      const tapeDeckTool = new TapeDeckTool(tapeDeck);
+      geminiChat.addTool(tapeDeckTool);
+
+      const metronomeHandler = await MetronomeHandler.create(
+        audioCtx, songContext, tapeDeck);
       const metronomeTool = new MetronomeTool(metronomeHandler);
       geminiChat.addTool(metronomeTool);
 
-      const tapeDeck = new TapeDeck(audioCtx, metronomeHandler, recorder);
-      const tapeDeckTool = new TapeDeckTool(tapeDeck);
-      geminiChat.addTool(tapeDeckTool);
 
       tapeDeck.setOutput(audioCtx.destination);
       console.log('TapeDeck initialized and connected to default I/O.');

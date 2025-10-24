@@ -10,8 +10,6 @@ class RecordProcessor extends AudioWorkletProcessor {
     this.framesCollected = 0;
     this.batchStartFrame = 0;
     this.batchStartTime = 0;
-
-    this.port.onmessage = this.handleMessage.bind(this);
   }
 
   /**
@@ -39,12 +37,14 @@ class RecordProcessor extends AudioWorkletProcessor {
       // Buffer is full, calculate stats and send it.
       let sumOfSquares = 0.0;
       let maxPeak = 0.0;
+      let maxPeakIndex = 0;
       for (let i = 0; i < this.buffer.length; i++) {
         const sample = this.buffer[i];
         sumOfSquares += sample * sample;
         const absSample = Math.abs(sample);
         if (absSample > maxPeak) {
           maxPeak = absSample;
+          maxPeakIndex = i;
         }
       }
       const rms = Math.sqrt(sumOfSquares / this.buffer.length);
@@ -54,6 +54,7 @@ class RecordProcessor extends AudioWorkletProcessor {
         samples: this.buffer,
         rms: rms,
         peak: maxPeak,
+        maxPeakIndex: maxPeakIndex,
         startFrame: this.batchStartFrame,
         startTimeS: this.batchStartTime,
       }, [this.buffer.buffer]);

@@ -1,4 +1,6 @@
 import { SongContext } from "./song-context.js";
+import { TapeDeck, TransportEvent } from "./tape-deck.js";
+import { SyncTime } from "./sync-time.js";
 
 export class MetronomeSettings {
   /** @type {boolean} */
@@ -31,8 +33,10 @@ export class MetronomeHandler {
 
   /**
    * @param {AudioContext} audioCtx
+   * @param {SongContext} songContext
+   * @param {TapeDeck} tapeDeck
    */
-  constructor(audioCtx, songContext) {
+  constructor(audioCtx, songContext, tapeDeck) {
     this.#audioCtx = audioCtx;
     this.#songContext = songContext;
     this.#audioCtx.audioWorklet.addModule('metronome-worker.js').then(() => {
@@ -41,25 +45,44 @@ export class MetronomeHandler {
     }).catch(err => {
       console.error('Failed to load or instantiate metronome-worker:', err);
     });
+    if (tapeDeck) {
+      tapeDeck.onTransportEvent(this.#handleTransportEvent.bind(this));
+    }
   }
 
   /**
    * 
    * @param {AudioContext} audioCtx 
    * @param {SongContext} songContext
-   * @returns 
+   * @param {TapeDeck} tapeDeck
    */
-  static async create(audioCtx, songContext) {
+  static async create(audioCtx, songContext, tapeDeck) {
     if (!songContext) {
       throw new Error('SongContext is required.');
     }
-    const metronome = new MetronomeHandler(audioCtx, songContext);
+    const metronome = new MetronomeHandler(audioCtx, songContext, tapeDeck);
     await metronome.#audioCtx.audioWorklet.addModule('metronome-worker.js');
     metronome.#metronomeNode = new AudioWorkletNode(metronome.#audioCtx, 'metronome-processor');
     metronome.connect(audioCtx.destination);
     console.log('MetronomeProcessor worklet node created.');
+    songContext.onSongTimeChanged(metronome.updateTempo.bind(metronome));
     return metronome;
   }
+
+  /**
+   * @param {TransportEvent} event
+   */
+  #handleTransportEvent(event) {
+    if (event.transportAction === 'play') {
+      const position = new SyncTime();
+      position.audioCtxTimeS = event.audioCtxTimeS;
+      position.tapeTimeS = event.tapeTimeS;
+      this.start(position);
+    } else if (event.transportAction === 'stop') {
+      this.stop();
+    }
+  }
+
 
   /**
    * @param {AudioNode} output
@@ -71,7 +94,7 @@ export class MetronomeHandler {
     this.#metronomeNode.connect(output);
   }
 
-  updateTempo(newSettings) {
+  updateTempo() {
     this.#metronomeNode.port.postMessage({
       method: 'set',
       detail: {

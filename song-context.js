@@ -42,14 +42,41 @@ export class SongContext {
   tempo = 120;
   beatsPerMeasure = 4;
 
+  /** @type {((songContext: SongContext) => void)[]} */
+  #onSongTimeChangedCallbacks = [];
+
   constructor() {
+  }
+
+  /**
+   * @param {(songContext: SongContext) => void} callback
+   */
+  onSongTimeChanged(callback) {
+    this.#onSongTimeChangedCallbacks.push(callback);
   }
 
   getJSON() {
     return {
       tempo: this.tempo,
       beatsPerMeasure: this.beatsPerMeasure,
-      sections: this.sections
+      sections: this.sections,
+    }
+  }
+
+  /**
+   * Recalculates section durations and start times based on the current song tempo and time signature.
+   */
+  #recalculateSections() {
+    this.songLengthS = 0;
+    this.startTimesS = [];
+    for (const section of this.sections) {
+      section.bpm = this.tempo;
+      section.beatsPerMeasure = this.beatsPerMeasure;
+      section.durationS = section.getDurationS();
+      section.startTimeS = this.songLengthS;
+
+      this.startTimesS.push(this.songLengthS);
+      this.songLengthS += section.durationS;
     }
   }
 
@@ -60,13 +87,21 @@ export class SongContext {
   setSongTime({ tempo, beatsPerMeasure }) {
     this.tempo = tempo;
     this.beatsPerMeasure = beatsPerMeasure;
+    this.#recalculateSections();
+    for (const callback of this.#onSongTimeChangedCallbacks) {
+      callback(this);
+    }
   }
 
   /**
    * @param {{ name: string; measureCount: number; }} sectionArgs
    */
   addSection(sectionArgs) {
-    const section = new SectionContext(/** @type {any} */(sectionArgs));
+    const section = new SectionContext({
+      ...sectionArgs,
+      bpm: this.tempo,
+      beatsPerMeasure: this.beatsPerMeasure,
+    });
     if (this.sections.length > 0) {
       section.startTimeS = this.songLengthS;
     }
