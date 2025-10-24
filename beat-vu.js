@@ -1,6 +1,7 @@
 // @ts-check
 
 import { RecordHandler } from "./record-handler.js";
+import { SongContext } from "./song-context.js";
 /** @typedef {import('./record-handler.js').SampleData} SampleData */
 
 export class BeatVU {
@@ -14,6 +15,8 @@ export class BeatVU {
   #ctx;
   /** @type {RecordHandler} */
   #recordHandler;
+  /** @type {SongContext} */
+  #songContext;
 
   #bpm = 120;
   #beatsPerMeasure = 4;
@@ -23,11 +26,13 @@ export class BeatVU {
    * @param {AudioContext} audioCtx
    * @param {HTMLElement} container
    * @param {RecordHandler} recordHandler
+   * @param {SongContext} songContext
    */
-  constructor(audioCtx, container, recordHandler) {
+  constructor(audioCtx, container, recordHandler, songContext) {
     this.#audioCtx = audioCtx;
     this.#container = container;
     this.#recordHandler = recordHandler;
+    this.#songContext = songContext;
 
     this.#canvas = document.createElement('canvas');
     this.#canvas.width = 1024;
@@ -40,7 +45,15 @@ export class BeatVU {
     this.#ctx = ctx;
     this.#ctx.fillStyle = '#000';
     this.#ctx.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
-    this.setTiming({ bpm: 120, beatsPerMeasure: 4 });
+    this.setTiming({
+      bpm: this.#songContext.tempo,
+      beatsPerMeasure: this.#songContext.beatsPerMeasure
+    });
+
+    this.#songContext.onSongTimeChanged(() => this.setTiming({
+      bpm: this.#songContext.tempo,
+      beatsPerMeasure: this.#songContext.beatsPerMeasure
+    }));
 
     this.#recordHandler.addSampleCallback(this.#handleSamples.bind(this));
     this.#animate();

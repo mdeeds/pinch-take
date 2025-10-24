@@ -133,8 +133,8 @@ async function main() {
       const recorder = await RecordHandler.create(audioCtx);
       recorder.connectInput(source);
 
-      const vu = new BeatVU(audioCtx, document.body, recorder);
-      vu.setTiming({ bpm: 120, beatsPerMeasure: 4 });
+      const vu = new BeatVU(audioCtx, document.body, recorder, songContext);
+      // vu.setTiming({ bpm: 120, beatsPerMeasure: 4 }); // This is now handled inside BeatVU
 
       const tapeDeck = new TapeDeck(audioCtx, recorder);
       const tapeDeckTool = new TapeDeckTool(tapeDeck);
