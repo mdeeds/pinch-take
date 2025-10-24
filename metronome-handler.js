@@ -38,15 +38,7 @@ export class MetronomeHandler {
   constructor(audioCtx, songContext, tapeDeck) {
     this.#audioCtx = audioCtx;
     this.#songContext = songContext;
-    this.#audioCtx.audioWorklet.addModule('metronome-worker.js').then(() => {
-      this.#metronomeNode = new AudioWorkletNode(this.#audioCtx, 'metronome-processor');
-      console.log('MetronomeProcessor worklet node created.');
-    }).catch(err => {
-      console.error('Failed to load or instantiate metronome-worker:', err);
-    });
-    if (tapeDeck) {
-      tapeDeck.onTransportEvent(this.#handleTransportEvent.bind(this));
-    }
+    tapeDeck?.onTransportEvent(this.#handleTransportEvent.bind(this));
   }
 
   /**
@@ -63,7 +55,6 @@ export class MetronomeHandler {
     await metronome.#audioCtx.audioWorklet.addModule('metronome-worker.js');
     metronome.#metronomeNode = new AudioWorkletNode(metronome.#audioCtx, 'metronome-processor');
     metronome.connect(audioCtx.destination);
-    console.log('MetronomeProcessor worklet node created.');
     songContext.onSongTimeChanged(metronome.updateTempo.bind(metronome));
     return metronome;
   }

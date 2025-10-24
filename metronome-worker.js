@@ -59,14 +59,14 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     this._beatsPerMeasure = this._beatsPerMeasure || 4;
     if (audioContextTimeS !== undefined) {
       const startFrame = Math.floor(audioContextTimeS * sampleRate);
-      const secondsPerBeat = 60.0 / this.bpm_;
+      const secondsPerBeat = 60.0 / this._bpm;
       const framesPerBeat = secondsPerBeat * sampleRate;
 
       if (currentFrame > startFrame) {
         const framesSinceStart = currentFrame - startFrame;
         const beatsSinceStart = Math.floor(framesSinceStart / framesPerBeat);
         this._beatCount = beatsSinceStart % this._beatsPerMeasure;
-        this._nextTickFrame = startFrame + (beatsSinceStart * framesPerBeat);
+        this._nextTickFrame = startFrame + ((beatsSinceStart + 1) * framesPerBeat);
       } else {
         this._beatCount = 0;
         this._nextTickFrame = startFrame;
@@ -145,6 +145,16 @@ class MetronomeProcessor extends AudioWorkletProcessor {
         outputChannel[i] = 0;
         // Reset tick state.
         this._framesInTick = -1;
+      }
+    }
+
+    // Copy the mono metronome signal from the first channel of the first output
+    // to all other channels of all outputs.
+    for (let outputIndex = 0; outputIndex < outputs.length; outputIndex++) {
+      const output = outputs[outputIndex];
+      for (let channelIndex = 0; channelIndex < output.length; channelIndex++) {
+        if (outputIndex === 0 && channelIndex === 0) continue;
+        output[channelIndex].set(outputChannel);
       }
     }
 
