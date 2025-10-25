@@ -113,6 +113,7 @@ export class Mixer {
     // Create a reverb effect with a 2-second half-life and connect it to the master bus.
     this.#reverb = new ReverbEffect(this.#audioCtx, 2.0);
     this.#reverb.connect(this.#master);
+    this.#master.connect(this.#audioCtx.destination);
   }
 
   /**

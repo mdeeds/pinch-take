@@ -31,7 +31,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
    */
   handleMessage(event) {
     const { method, detail } = event.data;
-    console.log(`Metronome received message:`, event.data)
+    // console.log(`Metronome received message:`, event.data)
 
     switch (method) {
       case 'start':
@@ -75,7 +75,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       this._beatCount = 0;
       this._nextTickFrame = currentFrame; // Start immediately if no time is given
     }
-    console.log(`Metronome started. Beat count: ${this._beatCount}, Next tick: ${this._nextTickFrame}`);
+    // console.log(`Metronome started. Beat count: ${this._beatCount}, Next tick: ${this._nextTickFrame}`);
   }
 
   /**

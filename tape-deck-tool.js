@@ -23,7 +23,11 @@ export class TapeDeckTool {
       properties: {
         action: {
           type: 'STRING',
-          description: "The action to perform: 'play' or 'stop'.",
+          description: "The action to perform: 'play', 'stop', or 'record'.",
+        },
+        trackNumber: {
+          type: 'INTEGER',
+          description: 'The track number to arm for recording. Required if action is "record".',
         },
       },
       required: ['action'],
@@ -41,7 +45,7 @@ export class TapeDeckTool {
   }
 
   /**
-   * @param {{action: 'play' | 'stop'}} args
+   * @param {{action: 'play' | 'stop' | 'record', trackNumber?: number}} args
    * @returns {Promise<FunctionResponse>}
    */
   async run(args) {
@@ -53,6 +57,14 @@ export class TapeDeckTool {
     } else if (args.action === 'stop') {
       this.#tapeDeck.stop();
       responseText = 'Playback stopped.';
+    } else if (args.action === 'record') {
+      if (args.trackNumber === undefined) {
+        responseText = 'Error: trackNumber is required for recording.';
+      } else {
+        this.#tapeDeck.arm(args.trackNumber);
+        this.#tapeDeck.startPlayback(0, true);
+        responseText = `Recording started on track ${args.trackNumber}.`;
+      }
     } else {
       responseText = `Unknown action: ${args.action}`;
     }

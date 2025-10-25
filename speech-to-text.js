@@ -48,7 +48,7 @@ export class SpeechToText {
     }
     this.isListening = true;
     this.recognition.start();
-    console.log('Speech recognition started. Listening...');
+    // console.log('Speech recognition started. Listening...');
   }
 
   /**
@@ -77,7 +77,7 @@ export class SpeechToText {
 
     const keywordIndex = finalTranscript.toLowerCase().indexOf(LISTEN_KEYWORD);
     if (keywordIndex !== -1) {
-      console.log(`Keyword "${LISTEN_KEYWORD}" detected.`);
+      // console.log(`Keyword "${LISTEN_KEYWORD}" detected.`);
       this.isTranscribing = true;
       // Remove the keyword and everything before it
       const command = finalTranscript.substring(keywordIndex + LISTEN_KEYWORD.length);
