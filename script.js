@@ -149,9 +149,6 @@ async function main() {
         audioCtx, songContext, tapeDeck);
       const metronomeTool = new MetronomeTool(metronomeHandler);
       geminiChat.addTool(metronomeTool);
-
-
-      tapeDeck.setOutput(audioCtx.destination);
       console.log('TapeDeck initialized and connected to default I/O.');
     } catch (err) {
       console.error('Failed to initialize audio components:', err);

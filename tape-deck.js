@@ -29,6 +29,9 @@ export class TapeDeck {
   /** @type {number} */
   #armedTrack = -1;
 
+  /** @type {boolean} */
+  #isRecording = false;
+
   /** @type {((event: TransportEvent) => void)[]} */
   #onTransportEventCallbacks = [];
 
@@ -94,6 +97,7 @@ export class TapeDeck {
     const tapeTimeFrames = Math.round(tapeTimeS * this.#audioCtx.sampleRate);
     this.#tapeZeroFrame = Math.round(nowTimeS * this.#audioCtx.sampleRate) - tapeTimeFrames;
 
+    this.#isRecording = recording;
     if (recording) {
       if (this.#armedTrack === -1) {
         console.warn('Recording started but no track is armed.');
@@ -126,6 +130,7 @@ export class TapeDeck {
     event.audioCtxTimeS = nowTimeS;
     event.tapeTimeS = tapeTimeS;
     this.#tapeZeroFrame = -1;
+    this.#isRecording = false;
     for (const callback of this.#onTransportEventCallbacks) {
       callback(event);
     }
@@ -160,8 +165,8 @@ export class TapeDeck {
    * @param {import('./record-handler.js').SampleData} data
    */
   #handleSamples(data) {
-    // Only record if a track is armed and we are "playing" (i.e., tape is rolling)
-    if (this.#armedTrack < 0 || this.#tapeZeroFrame <= 0) {
+    // Only record if a track is armed, we are recording, and the tape is rolling.
+    if (this.#armedTrack < 0 || !this.#isRecording || this.#tapeZeroFrame <= 0) {
       return;
     }
 
