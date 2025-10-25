@@ -12,6 +12,8 @@ import { MetronomeHandler } from './metronome-handler.js';
 import { TapeDeckTool } from './tape-deck-tool.js';
 import { RecordHandler } from './record-handler.js';
 import { BeatVU } from './beat-vu.js';
+import { Mixer } from './mixer.js';
+import { MixerTool } from './mixer-tool.js';
 
 const chatHistoryElement = document.getElementById('chat-history');
 const chatInputElement = /** @type {HTMLInputElement} */ (document.getElementById('chat-input'));
@@ -133,7 +135,11 @@ async function main() {
       const recorder = await RecordHandler.create(audioCtx);
       recorder.connectInput(source);
 
-      const tapeDeck = new TapeDeck(audioCtx, recorder);
+      const mixer = new Mixer(audioCtx);
+      const mixerTool = new MixerTool(mixer);
+      geminiChat.addTool(mixerTool);
+
+      const tapeDeck = new TapeDeck(audioCtx, recorder, mixer);
       const tapeDeckTool = new TapeDeckTool(tapeDeck);
       geminiChat.addTool(tapeDeckTool);
 

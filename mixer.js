@@ -44,6 +44,30 @@ class Channel {
   connect(destination) {
     this.#panner.connect(destination);
   }
+
+  /**
+   * @param {{ volume?: number, pan?: number }} settings
+   */
+  set(settings) {
+    if (settings.volume !== undefined) {
+      // Convert dB to linear gain value. 0dB = 1.0, -6dB ~= 0.5
+      const gain = Math.pow(10, settings.volume / 20);
+      this.#fader.gain.value = gain;
+    }
+    if (settings.pan !== undefined) this.#panner.pan.value = settings.pan;
+  }
+
+  /**
+   * Returns a JSON-serializable object representing the channel's state.
+   * @returns {{volume: number, pan: number}}
+   */
+  toJSON() {
+    // Convert linear gain back to dB. Handle gain=0 case to avoid -Infinity.
+    const gain = this.#fader.gain.value;
+    const volume = gain > 0 ? 20 * Math.log10(gain) : -Infinity;
+    const pan = this.#panner.pan.value;
+    return { volume, pan };
+  }
 }
 
 /**
@@ -64,7 +88,6 @@ export class Mixer {
   constructor(audioCtx) {
     this.#audioCtx = audioCtx;
     this.#master = this.#audioCtx.createGain();
-    this.#master.connect(this.#audioCtx.destination);
   }
 
   /**
@@ -93,5 +116,20 @@ export class Mixer {
     const channel = new Channel(this.#audioCtx);
     channel.connect(this.#master);
     this.#channels.push(channel);
+  }
+
+  /**
+   * Returns a JSON-serializable object representing the mixer's state,
+   * including the master volume and the state of all its channels.
+   * @returns {{masterVolume: number, channels: {volume: number, pan: number}[]}}
+   */
+  toJSON() {
+    const gain = this.#master.gain.value;
+    const masterVolume = gain > 0 ? 20 * Math.log10(gain) : -Infinity;
+
+    return {
+      masterVolume,
+      channels: this.#channels.map(channel => channel.toJSON())
+    };
   }
 }

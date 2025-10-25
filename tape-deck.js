@@ -1,6 +1,7 @@
 // @ts-check
 
 import { MetronomeHandler } from "./metronome-handler.js";
+import { Mixer } from "./mixer.js";
 import { RecordHandler } from "./record-handler.js";
 
 export class TransportEvent {
@@ -18,6 +19,9 @@ export class TapeDeck {
 
   /** @type {RecordHandler} */
   #recorder;
+
+  /** @type {Mixer} */
+  #mixer;
 
   /** @type {number} */
   #tapeZeroTime = 0;
@@ -37,10 +41,12 @@ export class TapeDeck {
    * 
    * @param {AudioContext} audioCtx 
    * @param {RecordHandler} recorder
+   * @param {Mixer} mixer
    */
-  constructor(audioCtx, recorder) {
+  constructor(audioCtx, recorder, mixer) {
     this.#audioCtx = audioCtx;
     this.#recorder = recorder;
+    this.#mixer = mixer;
   }
 
   /**
@@ -102,6 +108,7 @@ export class TapeDeck {
     const source = this.#audioCtx.createBufferSource();
     source.buffer = buffer;
     source.loop = false;
+    this.#mixer.patch(source, this.#trackNodes.length);
     this.#trackNodes.push(source);
   }
 
