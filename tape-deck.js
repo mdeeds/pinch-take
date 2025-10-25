@@ -25,6 +25,14 @@ export class TapeDeck {
   /** @type {((event: TransportEvent) => void)[]} */
   #onTransportEventCallbacks = [];
 
+  /** @type {AudioBuffer[]} */
+  #trackBuffers = [];
+
+  /** @type {AudioBufferSourceNode[]} */
+  #trackNodes = [];
+
+  static MAX_TRACK_LENGTH_S = 60 * 5; // 5 minutes
+
   /**
    * 
    * @param {AudioContext} audioCtx 
@@ -86,4 +94,31 @@ export class TapeDeck {
     }
   }
 
+  #addTrack() {
+    const trackLength = this.#audioCtx.sampleRate * TapeDeck.MAX_TRACK_LENGTH_S;
+    // 1 = mono track
+    const buffer = this.#audioCtx.createBuffer(1, trackLength, this.#audioCtx.sampleRate);
+    this.#trackBuffers.push(buffer);
+    const source = this.#audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = false;
+    this.#trackNodes.push(source);
+  }
+
+  /**
+   * Copies audio samples into a specific track buffer.
+   * @param {Float32Array} inputAudioSamples The audio samples to copy.
+   * @param {number} inputStartFrame The starting sample index within `inputAudioSamples` to copy from.
+   * @param {number} trackNumber The index of the track to write to.
+   * @param {number} trackStartFrame The starting sample index within the track buffer to write to.
+   */
+  #setBufferData(inputAudioSamples, inputStartFrame, trackNumber, trackStartFrame) {
+    if (trackNumber < 0 || trackNumber >= this.#trackBuffers.length) {
+      throw new Error(`Invalid track number: ${trackNumber}`);
+    }
+    const trackBuffer = this.#trackBuffers[trackNumber];
+    const trackChannelData = trackBuffer.getChannelData(0); // Assuming mono tracks
+    const samplesToCopy = inputAudioSamples.subarray(inputStartFrame);
+    trackChannelData.set(samplesToCopy, trackStartFrame);
+  }
 }
