@@ -33,6 +33,10 @@ export class MixerTool {
           type: 'NUMBER',
           description: 'The stereo pan, from -1.0 (full left) to 1.0 (full right).',
         },
+        reverbSend: {
+          type: 'NUMBER',
+          description: 'The reverb send level in decibels (dB). -Infinity is silent, 0 is nominal.',
+        },
       },
       required: ['channelNumber'],
     },
@@ -49,13 +53,13 @@ export class MixerTool {
   }
 
   /**
-   * @param {{ channelNumber: number, volume?: number, pan?: number }} args
+   * @param {{ channelNumber: number, volume?: number, pan?: number, reverbSend?: number }} args
    * @returns {Promise<FunctionResponse>}
    */
   async run(args) {
     const channel = this.#mixer.getChannel(args.channelNumber);
     if (!channel) {
-      return MakeToolResponse(this, `Error: Channel ${args.channelNumber} not found.`);
+      return MakeToolResponse(this, `Error: Channel ${args.channelNumber} not found. You may need to create it first by patching an audio source to it.`);
     }
 
     channel.set({ volume: args.volume, pan: args.pan });
