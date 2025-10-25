@@ -24,7 +24,10 @@ export class TapeDeck {
   #mixer;
 
   /** @type {number} */
-  #tapeZeroTime = 0;
+  #tapeZeroFrame = -1;
+
+  /** @type {number} */
+  #armedTrack = -1;
 
   /** @type {((event: TransportEvent) => void)[]} */
   #onTransportEventCallbacks = [];
@@ -34,6 +37,9 @@ export class TapeDeck {
 
   /** @type {AudioBufferSourceNode[]} */
   #trackNodes = [];
+
+  /** @type {GainNode[]} */
+  #trackGains = [];
 
   static MAX_TRACK_LENGTH_S = 60 * 5; // 5 minutes
 
@@ -47,6 +53,7 @@ export class TapeDeck {
     this.#audioCtx = audioCtx;
     this.#recorder = recorder;
     this.#mixer = mixer;
+    this.#recorder.addSampleCallback(this.#handleSamples.bind(this));
   }
 
   /**
@@ -56,13 +63,6 @@ export class TapeDeck {
     this.#onTransportEventCallbacks.push(callback);
   }
 
-  /**
-   * 
-   * @param {AudioNode} output 
-   */
-  setOutput(output) {
-  }
-
   //////////////////////
   // TRANSPORT CONTROL
   // All transport (play, record, stop) operations are specified in "tape time".  This is
@@ -70,18 +70,47 @@ export class TapeDeck {
   // this to the audio context time as appropriate.
   //////////////////////
 
+  #disconnect() {
+    // Stop and discard all current track nodes. They are one-shot and cannot be restarted.
+    for (const node of this.#trackNodes) {
+      node.stop();
+      node.disconnect();
+    }
+    this.#trackNodes = [];
+  }
+
   /**
    * 
-   * @param {number} tapeTimeS
+   * @param {number} tapeTimeS The time on the tape to start playback from.
+   * @param {boolean} [recording=false] Whether to start recording on the armed track.
    */
-  startPlayback(tapeTimeS) {
+  startPlayback(tapeTimeS, recording = false) {
     const nowTimeS = this.#audioCtx.currentTime;
     const event = new TransportEvent();
     event.transportAction = 'play';
     event.audioCtxTimeS = nowTimeS
     event.tapeTimeS = tapeTimeS;
 
-    this.#tapeZeroTime = nowTimeS - tapeTimeS;
+    const tapeTimeFrames = Math.round(tapeTimeS * this.#audioCtx.sampleRate);
+    this.#tapeZeroFrame = Math.round(nowTimeS * this.#audioCtx.sampleRate) - tapeTimeFrames;
+
+    if (recording) {
+      if (this.#armedTrack === -1) {
+        console.warn('Recording started but no track is armed.');
+      }
+    }
+    // Start new source nodes for each track.
+    this.#disconnect();
+    if (this.#trackBuffers.length != this.#trackGains.length) {
+      throw new Error("Internal error: #trackBuffers and #trackGains must be the same length.")
+    }
+    for (let i = 0; i < this.#trackBuffers.length; i++) {
+      const sourceNode = this.#audioCtx.createBufferSource();
+      sourceNode.buffer = this.#trackBuffers[i];
+      sourceNode.connect(this.#trackGains[i]);
+      sourceNode.start(nowTimeS, tapeTimeS);
+      this.#trackNodes.push(sourceNode);
+    }
 
     for (const callback of this.#onTransportEventCallbacks) {
       callback(event);
@@ -89,27 +118,59 @@ export class TapeDeck {
   }
 
   stop() {
+    this.#disconnect();
     const nowTimeS = this.#audioCtx.currentTime;
-    const tapeTimeS = nowTimeS - this.#tapeZeroTime;
+    const tapeTimeS = (Math.round(nowTimeS * this.#audioCtx.sampleRate) - this.#tapeZeroFrame) / this.#audioCtx.sampleRate;
     const event = new TransportEvent();
     event.transportAction = 'stop';
     event.audioCtxTimeS = nowTimeS;
     event.tapeTimeS = tapeTimeS;
+    this.#tapeZeroFrame = -1;
     for (const callback of this.#onTransportEventCallbacks) {
       callback(event);
     }
+    this.#trackNodes = [];
+  }
+
+  /**
+   * Arms a track for recording. Creates tracks if they don't exist.
+   * @param {number} trackNumber The track to arm.
+   */
+  arm(trackNumber) {
+    while (this.#trackBuffers.length <= trackNumber) {
+      this.#addTrack();
+    }
+    this.#armedTrack = trackNumber;
+    console.log(`Track ${trackNumber} armed.`);
   }
 
   #addTrack() {
+    const newTrackIndex = this.#trackBuffers.length;
     const trackLength = this.#audioCtx.sampleRate * TapeDeck.MAX_TRACK_LENGTH_S;
     // 1 = mono track
     const buffer = this.#audioCtx.createBuffer(1, trackLength, this.#audioCtx.sampleRate);
     this.#trackBuffers.push(buffer);
-    const source = this.#audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = false;
-    this.#mixer.patch(source, this.#trackNodes.length);
-    this.#trackNodes.push(source);
+    const gainNode = this.#audioCtx.createGain();
+    this.#trackGains.push(gainNode);
+    this.#mixer.patch(gainNode, newTrackIndex);
+    // Note: We don't create the source node here because they are one-shot and must be created at playback time.
+  }
+
+  /**
+   * @param {import('./record-handler.js').SampleData} data
+   */
+  #handleSamples(data) {
+    // Only record if a track is armed and we are "playing" (i.e., tape is rolling)
+    if (this.#armedTrack < 0 || this.#tapeZeroFrame <= 0) {
+      return;
+    }
+
+    // Calculate the start frame for this sample batch in "tape time"
+    const trackStartFrame = data.startFrame - this.#tapeZeroFrame;
+    if (trackStartFrame < 0) {
+      return; // Don't record samples from before the tape started rolling.
+    }
+    this.#setBufferData(data.samples, 0, this.#armedTrack, trackStartFrame);
   }
 
   /**
