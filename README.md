@@ -38,3 +38,10 @@ Stop losing your best ideas to technical fumbling. **Tape Monkey** is always lis
 2.  **Click** Click the microphone to wake the monkey.
 2.  **Speak Naturally:** Say "Monkey" followed by a command or question.
 3.  **Create Your Masterpiece.**
+
+
+## Next steps
+
+We only record in mono.  I have my bass drum and hi-hats on different channels.  We probably just need to record in stereo.
+
+The engineer is too chatty.  Also, they seem to think we record all parts in a single take.  Maybe we should always send the recorded take back to the engineer for context.

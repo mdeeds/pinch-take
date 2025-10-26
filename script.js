@@ -1,5 +1,6 @@
 // @ts-check
 
+import { GeminiFileManager } from './gemini-file-manager.js';
 import { GeminiChat } from './gemini-chat.js';
 import { ChatUI } from './chat-ui.js';
 import { SpeechToText } from './speech-to-text.js';
@@ -80,7 +81,8 @@ async function main() {
     textToSpeech.speak(message);
   };
 
-  const geminiChat = new GeminiChat(apiKey, handleModelMessage);
+  const fileManager = new GeminiFileManager(apiKey);
+  const geminiChat = new GeminiChat(apiKey, fileManager, handleModelMessage);
   const songContext = new SongContext();
   geminiChat.addState('song', songContext);
   const songTool = new SongTool(songContext);
@@ -141,9 +143,9 @@ async function main() {
       const mixerTool = new MixerTool(mixer);
       geminiChat.addTool(mixerTool);
 
-      const tapeDeck = new TapeDeck(audioCtx, recorder, mixer);
+      const tapeDeck = new TapeDeck(audioCtx, recorder, mixer, fileManager);
       geminiChat.addState('tapeDeck', tapeDeck);
-      const tapeDeckTool = new TapeDeckTool(tapeDeck);
+      const tapeDeckTool = new TapeDeckTool(tapeDeck, songContext);
       geminiChat.addTool(tapeDeckTool);
 
       const vu = new BeatVU(audioCtx, document.body, recorder, songContext, tapeDeck);

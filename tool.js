@@ -34,10 +34,16 @@
 /**
  * @param {Tool} tool
  * @param {string} responseText
+ * @param {{mimeType: string, fileUri: string}} [fileData]
  */
-export function MakeToolResponse(tool, responseText) {
-  return {
+export function MakeToolResponse(tool, responseText, fileData) {
+  const result = {
     name: tool.declaration.name,
     response: { content: responseText }
   };
+
+  if (fileData) {
+    result.response.fileData = fileData;
+  }
+  return result;
 }

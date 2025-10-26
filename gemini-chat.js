@@ -1,4 +1,5 @@
 // @ts-check
+/** @typedef {import('./gemini-file-manager.js').GeminiFileManager} GeminiFileManager */
 /** @typedef {import('./tool.js').Tool} Tool */
 /** @typedef {import('./state.js').Stateful} Stateful */
 
@@ -10,6 +11,8 @@
 export class GeminiChat {
   /** @type {string} */
   #apiKey;
+  /** @type {GeminiFileManager} */
+  #fileManager;
   /** @type {(message: string) => void} */
   #onMessageCallback;
   /** @type {string | null} */
@@ -23,12 +26,14 @@ export class GeminiChat {
 
   /**
    * @param {string} apiKey - Your Google AI API key.
+   * @param {GeminiFileManager} fileManager
    * @param {(message: string) => void} onMessageCallback - Callback to handle model responses.
    */
-  constructor(apiKey, onMessageCallback) {
+  constructor(apiKey, fileManager, onMessageCallback) {
     if (!apiKey) throw new Error('apiKey is required.');
     if (!onMessageCallback) throw new Error('onMessageCallback is required.');
     this.#apiKey = apiKey;
+    this.#fileManager = fileManager;
     this.#onMessageCallback = onMessageCallback;
     this.#systemInstructions = `
 The metronome only plays during song playback.  If the musician needs a "count in" you need
@@ -63,7 +68,7 @@ Inserting time into a recording is difficult or impossible, so be judicious abou
     for (const part of parts) {
       if (part.functionCall) {
         const { name, args } = part.functionCall;
-        const toolResponse = {
+        let toolResponse = {
           name,
           response: { content: 'No response from tool.' }
         }
@@ -75,7 +80,7 @@ Inserting time into a recording is difficult or impossible, so be judicious abou
             toolDescription = toolDescription.slice(0, 200) + '...';
           }
           const result = await tool.run(args);
-          toolResponse.response = result;
+          toolResponse = result;
         } else {
           console.error(`Tool '${name}' not found.`);
           toolResponse.response.content = `Tool '${name}' not found.`;

@@ -1,5 +1,7 @@
 // @ts-check
 
+import { FileData } from "./gemini-file-manager.js";
+import { GeminiFileManager } from "./gemini-file-manager.js";
 import { MetronomeHandler } from "./metronome-handler.js";
 import { Mixer } from "./mixer.js";
 import { RecordHandler } from "./record-handler.js";
@@ -27,17 +29,25 @@ export class TapeDeck {
   /** @type {Mixer} */
   #mixer;
 
+  /** @type {GeminiFileManager} */
+  #fileManager;
+
   /** @type {number} */
   #tapeZeroFrame = -1;
 
   /** @type {number} */
-  #armedTrack = -1;
+  #punchInFrame = -1;
+  /** @type {number} */
+  #punchOutFrame = -1;
 
-  /** @type {boolean} */
-  #isRecording = false;
+  /** @type {number} */
+  #armedTrack = -1;
 
   /** @type {((event: TransportEvent) => void)[]} */
   #onTransportEventCallbacks = [];
+
+  /** @type {(() => void)[]} */
+  #resolveStops = [];
 
   /** @type {AudioBuffer[]} */
   #trackBuffers = [];
@@ -55,11 +65,13 @@ export class TapeDeck {
    * @param {AudioContext} audioCtx 
    * @param {RecordHandler} recorder
    * @param {Mixer} mixer
+   * @param {GeminiFileManager} fileManager
    */
-  constructor(audioCtx, recorder, mixer) {
+  constructor(audioCtx, recorder, mixer, fileManager) {
     this.#audioCtx = audioCtx;
     this.#recorder = recorder;
     this.#mixer = mixer;
+    this.#fileManager = fileManager;
     this.#recorder.addSampleCallback(this.#handleSamples.bind(this));
   }
 
@@ -88,24 +100,25 @@ export class TapeDeck {
 
   /**
    * 
-   * @param {number} tapeTimeS The time on the tape to start playback from.
-   * @param {boolean} [recording=false] Whether to start recording on the armed track.
+   * @param {number} startTimeS The time on the tape to start playback from.
+   * @param {number} stopTimeS The time on the tape to stop playback. If -1, plays to the end.
+   * @param {{punchInS?: number, punchOutS?: number}} [punchOptions]
    */
-  startPlayback(tapeTimeS, recording = false) {
+  startPlayback(startTimeS, stopTimeS = -1, { punchInS, punchOutS } = {}) {
     const nowTimeS = this.#audioCtx.currentTime;
     const event = new TransportEvent();
     event.transportAction = 'play';
     event.audioCtxTimeS = nowTimeS
-    event.tapeTimeS = tapeTimeS;
+    event.tapeTimeS = startTimeS;
 
-    const tapeTimeFrames = Math.round(tapeTimeS * this.#audioCtx.sampleRate);
+    this.#punchInFrame = punchInS !== undefined ? Math.round(punchInS * this.#audioCtx.sampleRate) : -1;
+    this.#punchOutFrame = punchOutS !== undefined ? Math.round(punchOutS * this.#audioCtx.sampleRate) : -1;
+
+    const tapeTimeFrames = Math.round(startTimeS * this.#audioCtx.sampleRate);
     this.#tapeZeroFrame = Math.round(nowTimeS * this.#audioCtx.sampleRate) - tapeTimeFrames;
 
-    this.#isRecording = recording;
-    if (recording) {
-      if (this.#armedTrack === -1) {
-        console.warn('Recording started but no track is armed.');
-      }
+    if (this.#punchInFrame !== -1 && this.#armedTrack === -1) {
+      console.warn('Punch-in time set but no track is armed.');
     }
     // Start new source nodes for each track.
     this.#disconnect();
@@ -113,16 +126,85 @@ export class TapeDeck {
       throw new Error("Internal error: #trackBuffers and #trackGains must be the same length.")
     }
     for (let i = 0; i < this.#trackBuffers.length; i++) {
+      const durationS = stopTimeS >= 0 ? stopTimeS - startTimeS : undefined;
       const sourceNode = this.#audioCtx.createBufferSource();
       sourceNode.buffer = this.#trackBuffers[i];
       sourceNode.connect(this.#trackGains[i]);
-      sourceNode.start(nowTimeS, tapeTimeS);
+      sourceNode.start(nowTimeS, startTimeS, durationS);
+      if (i === 0 && stopTimeS >= 0) {
+        sourceNode.onended = () => {
+          // Only resolve if the transport is still considered playing.
+          // If stop() was called, tapeZeroFrame would be -1.
+          if (this.#tapeZeroFrame !== -1) {
+            this.stop();
+          }
+        };
+      }
       this.#trackNodes.push(sourceNode);
     }
 
     for (const callback of this.#onTransportEventCallbacks) {
       callback(event);
     }
+  }
+
+  /**
+   * Returns a promise that resolves when playback stops, either by calling stop()
+   * or by reaching the end of the playback range.
+   */
+  async waitForEnd() {
+    return new Promise((resolve) => {
+      this.#resolveStops.push(resolve);
+    });
+  }
+
+  /**
+   * Extracts a slice of audio from a track, uploads it as a WAV file, and returns the file data.
+   * @param {number} trackNumber The track to get the slice from.
+   * @param {number} startTimeS The start time of the slice in seconds.
+   * @param {number} stopTimeS The end time of the slice in seconds.
+   * @returns {Promise<FileData>} A promise that resolves with the uploaded file's data.
+   */
+  async getTrackSlice(trackNumber, startTimeS, stopTimeS) {
+    if (trackNumber < 0 || trackNumber >= this.#trackBuffers.length) {
+      throw new Error(`Invalid track number: ${trackNumber}`);
+    }
+    const trackBuffer = this.#trackBuffers[trackNumber];
+
+    const startFrame = Math.round(startTimeS * this.#audioCtx.sampleRate);
+    const stopFrame = Math.round(stopTimeS * this.#audioCtx.sampleRate);
+    const sliceLength = stopFrame - startFrame;
+
+    if (sliceLength <= 0) {
+      throw new Error('Stop time must be after start time.');
+    }
+
+    const audioSlice = trackBuffer.getChannelData(0).subarray(startFrame, stopFrame);
+    const displayName = `Track ${trackNumber} (${startTimeS.toFixed(2)}s-${stopTimeS.toFixed(2)}s)`;
+    return this.#fileManager.uploadWav(audioSlice, this.#audioCtx.sampleRate, displayName);
+  }
+
+  /**
+   * Extracts a slice of audio from a track and returns it as a fileData object for Gemini.
+   * @param {number} trackNumber The track to get the slice from.
+   * @param {number} startTimeS The start time of the slice in seconds.
+   * @param {number} stopTimeS The end time of the slice in seconds.
+   * @returns {Promise<{mimeType: string, data: string}>} A promise that resolves with the file data object.
+   */
+  async getTrackSliceAsFileData(trackNumber, startTimeS, stopTimeS) {
+    if (trackNumber < 0 || trackNumber >= this.#trackBuffers.length) {
+      throw new Error(`Invalid track number: ${trackNumber}`);
+    }
+    const trackBuffer = this.#trackBuffers[trackNumber];
+    const startFrame = Math.round(startTimeS * this.#audioCtx.sampleRate);
+    const stopFrame = Math.round(stopTimeS * this.#audioCtx.sampleRate);
+
+    if (stopFrame - startFrame <= 0) {
+      throw new Error('Stop time must be after start time.');
+    }
+
+    const audioSlice = trackBuffer.getChannelData(0).subarray(startFrame, stopFrame);
+    return this.#fileManager.encodeWavAsFileData(audioSlice, this.#audioCtx.sampleRate);
   }
 
   stop() {
@@ -134,11 +216,19 @@ export class TapeDeck {
     event.audioCtxTimeS = nowTimeS;
     event.tapeTimeS = tapeTimeS;
     this.#tapeZeroFrame = -1;
-    this.#isRecording = false;
+    this.#punchInFrame = -1;
+    this.#punchOutFrame = -1;
     for (const callback of this.#onTransportEventCallbacks) {
       callback(event);
     }
-    this.#trackNodes = [];
+    this.#resolveWaitingStops();
+  }
+
+  #resolveWaitingStops() {
+    for (const resolve of this.#resolveStops) {
+      resolve();
+    }
+    this.#resolveStops = [];
   }
 
   /**
@@ -169,15 +259,21 @@ export class TapeDeck {
    * @param {import('./record-handler.js').SampleData} data
    */
   #handleSamples(data) {
-    // Only record if a track is armed, we are recording, and the tape is rolling.
-    if (this.#armedTrack < 0 || !this.#isRecording || this.#tapeZeroFrame <= 0) {
+    // Only record if a track is armed, the tape is rolling, and we have a punch-in time.
+    if (this.#armedTrack < 0 || this.#tapeZeroFrame <= 0 || this.#punchInFrame < 0) {
       return;
     }
 
     // Calculate the start frame for this sample batch in "tape time"
     const trackStartFrame = data.startFrame - this.#tapeZeroFrame;
-    if (trackStartFrame < 0) {
-      return; // Don't record samples from before the tape started rolling.
+    const trackEndFrame = trackStartFrame + data.samples.length;
+
+    // Don't record samples from before the punch-in point or after the punch-out point.
+    if (trackEndFrame < this.#punchInFrame) {
+      return;
+    }
+    if (this.#punchOutFrame >= 0 && trackStartFrame > this.#punchOutFrame) {
+      return;
     }
     this.#setBufferData(data.samples, 0, this.#armedTrack, trackStartFrame);
   }

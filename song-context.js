@@ -51,7 +51,7 @@ export class SectionContext {
  */
 export class SongContext {
   /** @type {SectionContext[]} */
-  sections = [];
+  #sections = [];
 
   /** @type {number[]} */
   startTimesS = [];
@@ -79,7 +79,7 @@ export class SongContext {
     return {
       tempo: this.tempo,
       beatsPerMeasure: this.beatsPerMeasure,
-      sections: this.sections.map(s => s.getJSON()),
+      sections: this.#sections.map(s => s.getJSON()),
     }
   }
 
@@ -89,7 +89,7 @@ export class SongContext {
   #recalculateSections() {
     this.songLengthS = 0;
     this.startTimesS = [];
-    for (const section of this.sections) {
+    for (const section of this.#sections) {
       section.bpm = this.tempo;
       section.beatsPerMeasure = this.beatsPerMeasure;
       section.durationS = section.getDurationS();
@@ -122,10 +122,10 @@ export class SongContext {
       bpm: this.tempo,
       beatsPerMeasure: this.beatsPerMeasure,
     });
-    if (this.sections.length > 0) {
+    if (this.#sections.length > 0) {
       section.startTimeS = this.songLengthS;
     }
-    this.sections.push(section);
+    this.#sections.push(section);
     this.startTimesS.push(this.songLengthS);
     this.songLengthS += section.durationS;
   }
@@ -137,10 +137,23 @@ export class SongContext {
   getSectionAtTime(tapeTimeS) {
     for (let i = 1; i < this.startTimesS.length; i++) {
       if (tapeTimeS < this.startTimesS[i]) {
-        return this.sections[i - 1];
+        return this.#sections[i - 1];
       }
     }
-    return this.sections[this.sections.length - 1];
+    return this.#sections[this.#sections.length - 1];
+  }
+
+  /**
+   * @param {string} name
+   * @returns {SectionContext}
+   * @throws {Error} if section is not found.
+   */
+  getSection(name) {
+    const section = this.#sections.find(s => s.name === name);
+    if (!section) {
+      throw new Error(`Section "${name}" not found.`);
+    }
+    return section;
   }
 
 }
