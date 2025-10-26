@@ -1,6 +1,10 @@
 // @ts-check
 
+import { Stateful } from "./state.js";
 
+/**
+ * @implements {Stateful}
+ */
 export class SectionContext {
   /** @type {string} */
   name;
@@ -10,6 +14,10 @@ export class SectionContext {
   durationS;
   /** @type {number} */
   startTimeS;
+  /** @type {number} */
+  bpm;
+  /** @type {number} */
+  beatsPerMeasure;
 
   /**
    * @param {{ name: string; bpm: number; beatsPerMeasure: number; measureCount: number; }} args
@@ -26,8 +34,21 @@ export class SectionContext {
   getDurationS() {
     return this.measureCount * this.beatsPerMeasure * 60 / this.bpm;
   }
+
+  /**
+   * @returns {{name: string, measureCount: number}}
+   */
+  getJSON() {
+    return {
+      name: this.name,
+      measureCount: this.measureCount,
+    };
+  }
 }
 
+/**
+ * @implements {Stateful}
+ */
 export class SongContext {
   /** @type {SectionContext[]} */
   sections = [];
@@ -58,7 +79,7 @@ export class SongContext {
     return {
       tempo: this.tempo,
       beatsPerMeasure: this.beatsPerMeasure,
-      sections: this.sections,
+      sections: this.sections.map(s => s.getJSON()),
     }
   }
 

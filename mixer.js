@@ -1,10 +1,12 @@
 // @ts-check
 
 import { ReverbEffect } from './reverb.js';
+import { Stateful } from './state.js';
 
 /**
  * Represents a single channel strip in the mixer.
  * Each channel has its own input, fader for volume control, and a panner for stereo positioning.
+ * @implements {Stateful}
  */
 class Channel {
   /** @type {AudioContext} */
@@ -78,7 +80,7 @@ class Channel {
    * Returns a JSON-serializable object representing the channel's state.
    * @returns {{volume: number, pan: number, reverbSend: number}}
    */
-  toJSON() {
+  getJSON() {
     // Convert linear gain back to dB. Handle gain=0 case to avoid -Infinity.
     const faderGain = this.#fader.gain.value;
     const volume = faderGain <= 0 ? -Infinity : 20 * Math.log10(faderGain);
@@ -92,6 +94,7 @@ class Channel {
 /**
  * The Mixer class manages multiple audio channels, mixes them into a stereo output,
  * and will provide support for send effects.
+ * @implements {Stateful}
  */
 export class Mixer {
   /** @type {AudioContext} */
@@ -149,13 +152,13 @@ export class Mixer {
    * including the master volume and the state of all its channels.
    * @returns {{masterVolume: number, channels: {volume: number, pan: number, reverbSend: number}[]}}
    */
-  toJSON() {
+  getJSON() {
     const gain = this.#master.gain.value;
     const masterVolume = gain > 0 ? 20 * Math.log10(gain) : -Infinity;
 
     return {
       masterVolume,
-      channels: this.#channels.map(channel => channel.toJSON())
+      channels: this.#channels.map(channel => channel.getJSON())
     };
   }
 }

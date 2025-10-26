@@ -3,6 +3,7 @@
 import { MetronomeHandler } from "./metronome-handler.js";
 import { Mixer } from "./mixer.js";
 import { RecordHandler } from "./record-handler.js";
+import { Stateful } from "./state.js";
 
 export class TransportEvent {
   /** @type {string} */
@@ -13,6 +14,9 @@ export class TransportEvent {
   tapeTimeS = 0;
 }
 
+/**
+ * @implements {Stateful}
+ */
 export class TapeDeck {
   /** @type {AudioContext} */
   #audioCtx;
@@ -193,5 +197,15 @@ export class TapeDeck {
     const trackChannelData = trackBuffer.getChannelData(0); // Assuming mono tracks
     const samplesToCopy = inputAudioSamples.subarray(inputStartFrame);
     trackChannelData.set(samplesToCopy, trackStartFrame);
+  }
+
+  /**
+   * @returns {{trackCount: number, armedTrack: number}}
+   */
+  getJSON() {
+    return {
+      trackCount: this.#trackBuffers.length,
+      armedTrack: this.#armedTrack,
+    };
   }
 }

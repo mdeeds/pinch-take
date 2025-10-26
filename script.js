@@ -82,6 +82,7 @@ async function main() {
 
   const geminiChat = new GeminiChat(apiKey, handleModelMessage);
   const songContext = new SongContext();
+  geminiChat.addState('song', songContext);
   const songTool = new SongTool(songContext);
   geminiChat.addTool(songTool);
   const sectionTool = new SectionTool(songContext);
@@ -136,10 +137,12 @@ async function main() {
       recorder.connectInput(source);
 
       const mixer = new Mixer(audioCtx);
+      geminiChat.addState('mixer', mixer);
       const mixerTool = new MixerTool(mixer);
       geminiChat.addTool(mixerTool);
 
       const tapeDeck = new TapeDeck(audioCtx, recorder, mixer);
+      geminiChat.addState('tapeDeck', tapeDeck);
       const tapeDeckTool = new TapeDeckTool(tapeDeck);
       geminiChat.addTool(tapeDeckTool);
 
@@ -147,6 +150,7 @@ async function main() {
 
       const metronomeHandler = await MetronomeHandler.create(
         audioCtx, songContext, tapeDeck);
+      geminiChat.addState('metronome', metronomeHandler);
       const metronomeTool = new MetronomeTool(metronomeHandler);
       geminiChat.addTool(metronomeTool);
       console.log('TapeDeck initialized and connected to default I/O.');

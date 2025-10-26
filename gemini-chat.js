@@ -1,5 +1,6 @@
 // @ts-check
 /** @typedef {import('./tool.js').Tool} Tool */
+/** @typedef {import('./state.js').Stateful} Stateful */
 
 /**
  * @typedef {{role: 'user' | 'model', parts: {text: string}[]}} ChatMessage
@@ -17,6 +18,8 @@ export class GeminiChat {
   conversationHistory = [];
   /** @type {Map<string, Tool>} */
   #tools = new Map();
+  /** @type {Map<string, Stateful>} */
+  #statefuls = new Map();
 
   /**
    * @param {string} apiKey - Your Google AI API key.
@@ -40,6 +43,14 @@ Inserting time into a recording is difficult or impossible, so be judicious abou
    */
   addTool(tool) {
     this.#tools.set(tool.declaration.name, tool);
+  }
+
+  /**
+   * @param {string} name
+   * @param {Stateful} stateful
+   */
+  addState(name, stateful) {
+    this.#statefuls.set(name, stateful);
   }
 
   /**
@@ -88,16 +99,28 @@ Inserting time into a recording is difficult or impossible, so be judicious abou
       const MODEL_NAME = 'gemini-flash-latest';
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${this.#apiKey}`;
 
+      let systemInstructions = this.#systemInstructions || '';
+      if (this.#statefuls.size > 0) {
+        const stateObject = {};
+        const sortedKeys = Array.from(this.#statefuls.keys()).sort();
+        for (const key of sortedKeys) {
+          const stateful = this.#statefuls.get(key);
+          if (stateful) {
+            stateObject[key] = stateful.getJSON();
+          }
+        }
+        systemInstructions += `\n\nCURRENT STATE:\n${JSON.stringify(stateObject, null, 2)}`;
+      }
+
       const toolDeclarations = Array.from(this.#tools.values()).map(tool => tool.declaration);
       const requestBody = {
         contents: this.conversationHistory,
         tools: [{ function_declarations: toolDeclarations }],
       };
 
-      if (this.#systemInstructions) {
-        // @ts-ignore
+      if (systemInstructions) {
         requestBody.system_instruction = {
-          parts: [{ text: this.#systemInstructions.trim() }],
+          parts: [{ text: systemInstructions.trim() }],
         };
       }
 

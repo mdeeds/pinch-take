@@ -1,4 +1,5 @@
 import { SongContext } from "./song-context.js";
+import { Stateful } from "./state.js";
 import { TapeDeck, TransportEvent } from "./tape-deck.js";
 
 export class MetronomeSettings {
@@ -17,6 +18,9 @@ export class MetronomeSettings {
 
 }
 
+/**
+ * @implements {Stateful}
+ */
 export class MetronomeHandler {
   /** @type {AudioWorkletNode | null} */
   #metronomeNode = null;
@@ -116,6 +120,13 @@ export class MetronomeHandler {
       throw new Error('MetronomeProcessor node not initialized.');
     }
     this.#metronomeNode.port.postMessage({ method: 'stop' });
+  }
+
+  /**
+   * @returns {MetronomeSettings}
+   */
+  getJSON() {
+    return this.settings;
   }
 
 }
