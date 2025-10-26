@@ -62,7 +62,7 @@ export class MixerTool {
       return MakeToolResponse(this, `Error: Channel ${args.channelNumber} not found. You may need to create it first by patching an audio source to it.`);
     }
 
-    channel.set({ volume: args.volume, pan: args.pan });
+    channel.set({ volume: args.volume, pan: args.pan, reverbSend: args.reverbSend });
 
     const responseText = `Set channel ${args.channelNumber} properties: ${JSON.stringify(args)}.`;
     return MakeToolResponse(this, responseText);

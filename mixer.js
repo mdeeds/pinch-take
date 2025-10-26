@@ -148,6 +148,18 @@ export class Mixer {
   }
 
   /**
+   * 
+   * @param {number} channelNumber 
+   * @returns Channel
+   */
+  getChannel(channelNumber) {
+    if (channelNumber < 0 || channelNumber >= this.#channels.length) {
+      throw new Error(`Invalid channel number: ${channelNumber}`);
+    }
+    return this.#channels[channelNumber];
+  }
+
+  /**
    * Returns a JSON-serializable object representing the mixer's state,
    * including the master volume and the state of all its channels.
    * @returns {{masterVolume: number, channels: {volume: number, pan: number, reverbSend: number}[]}}
