@@ -16,6 +16,13 @@ export class TransportEvent {
   tapeTimeS = 0;
 }
 
+export class TrackInfo {
+  /** @type {number} */
+  trackNumber = -1;
+  /** @type {string} */
+  name = "";
+}
+
 /**
  * @implements {Stateful}
  */
@@ -54,6 +61,9 @@ export class TapeDeck {
 
   /** @type {AudioBufferSourceNode[]} */
   #trackNodes = [];
+
+  /** @type {TrackInfo[]} */
+  #trackInfos = [];
 
   /** @type {GainNode[]} */
   #trackGains = [];
@@ -243,6 +253,29 @@ export class TapeDeck {
     console.log(`Track ${trackNumber} armed.`);
   }
 
+  /**
+   * 
+   * @param {number} trackNumber 
+   * @param {string} name 
+   */
+  setTrackName(trackNumber, name) {
+    if (trackNumber < 0 || trackNumber >= this.#trackInfos.length) {
+      throw new Error(`Invalid track number: ${trackNumber}`);
+    }
+    this.#trackInfos[trackNumber].name = name;
+  }
+
+  /**
+   * 
+   * @param {number} trackNumber 
+   */
+  getTrackName(trackNumber) {
+    if (trackNumber < 0 || trackNumber >= this.#trackInfos.length) {
+      throw new Error(`Invalid track number: ${trackNumber}`);
+    }
+    return this.#trackInfos[trackNumber].name;
+  }
+
   #addTrack() {
     const newTrackIndex = this.#trackBuffers.length;
     const trackLength = this.#audioCtx.sampleRate * TapeDeck.MAX_TRACK_LENGTH_S;
@@ -252,6 +285,8 @@ export class TapeDeck {
     const gainNode = this.#audioCtx.createGain();
     this.#trackGains.push(gainNode);
     this.#mixer.patch(gainNode, newTrackIndex);
+    this.#trackInfos.push({ trackNumber: newTrackIndex, name: '' });
+
     // Note: We don't create the source node here because they are one-shot and must be created at playback time.
   }
 
@@ -296,12 +331,13 @@ export class TapeDeck {
   }
 
   /**
-   * @returns {{trackCount: number, armedTrack: number}}
+   * @returns {{trackCount: number, armedTrack: number, trackInfo: TrackInfo[]}}
    */
   getJSON() {
     return {
       trackCount: this.#trackBuffers.length,
       armedTrack: this.#armedTrack,
+      trackInfo: this.#trackInfos,
     };
   }
 }

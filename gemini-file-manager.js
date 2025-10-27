@@ -108,6 +108,17 @@ export class GeminiFileManager {
    * @returns {Promise<FileData>} A promise that resolves with the file data.
    */
   async uploadWav(audioData, sampleRate, displayName) {
+    // Normalize the audio data to make it more likely that Gemini can interpret it.
+    let maxAbsSample = 0.001;
+    for (let i = 0; i < audioData.length; i++) {
+      maxAbsSample = Math.max(maxAbsSample, Math.abs(audioData[i]));
+    }
+    const normalizedAudio = new Float32Array(audioData.length);
+    for (let i = 0; i < audioData.length; i++) {
+      normalizedAudio[i] = audioData[i] / maxAbsSample;
+    }
+    audioData = normalizedAudio;
+
     const wavBlob = this.#encodeWav(audioData, sampleRate);
 
     // --- Step 1: Get the upload URL ---

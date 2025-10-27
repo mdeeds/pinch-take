@@ -18,7 +18,7 @@ export class TapeDeckTool {
   /** @type {FunctionDeclaration} */
   declaration = {
     name: 'transport_control',
-    description: 'Controls the tape deck playback. Returns the recorded audio as a file. Please critique.',
+    description: 'Controls the tape deck playback.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -96,9 +96,16 @@ export class TapeDeckTool {
       const uploadedFile = await this.#tapeDeck.getTrackSlice(args.trackNumber, startTimeS, endTimeS);
 
       if (args.section) {
-        responseText = `Finished recording track ${args.trackNumber} for section "${args.section}". Please analyze the audio file and identify the content.`;
+        responseText = `Finished recording track ${args.trackNumber} for section "${args.section}".`;
       } else {
-        responseText = `Finished recording track ${args.trackNumber}. Please analyze the audio file and identify the content.`;
+        responseText = `Finished recording track ${args.trackNumber}.`;
+      }
+      if (!this.#tapeDeck.getTrackName(args.trackNumber)) {
+        responseText += ` Finished recording. 
+Perform a technical analysis of the audio to determine the instrument playing on the 
+track, then call 'set_track_info' with a short name for the track.
+You will need to put this call in your response along with any feedback to the user.
+`;
       }
       const fileData = { mimeType: uploadedFile.mimeType, fileUri: uploadedFile.fileUri };
       return MakeToolResponse(this, responseText, fileData);
@@ -107,5 +114,56 @@ export class TapeDeckTool {
     }
 
     return MakeToolResponse(this, responseText);
+  }
+}
+
+/**
+ * The TrackInfoTool implementation for setting track metadata.
+ * @implements {Tool}
+ */
+export class TrackInfoTool {
+  /** @type {FunctionDeclaration} */
+  declaration = {
+    name: 'set_track_info',
+    description: 'Sets metadata for a track, such as its name. Call this after completing the recording and you have analyzed the audio.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        trackNumber: {
+          type: 'INTEGER',
+          description: 'The track number to modify (0-indexed).',
+        },
+        name: {
+          type: 'STRING',
+          description: 'The new name for the track. Call this after you have analyzed the audio.',
+        },
+      },
+      required: ['trackNumber', 'name'],
+    },
+  };
+
+  /** @type {TapeDeck} */
+  #tapeDeck;
+
+  /**
+   * @param {TapeDeck} tapeDeck
+   */
+  constructor(tapeDeck) {
+    this.#tapeDeck = tapeDeck;
+  }
+
+  /**
+   * @param {{trackNumber: number, name: string}} args
+   * @returns {Promise<FunctionResponse>}
+   */
+  async run(args) {
+    try {
+      this.#tapeDeck.setTrackName(args.trackNumber, args.name);
+      const responseText = `Set name for track ${args.trackNumber} to "${args.name}".`;
+      return MakeToolResponse(this, responseText);
+    } catch (error) {
+      console.error('Error setting track info:', error);
+      return MakeToolResponse(this, `Error setting track info: ${error.message}`);
+    }
   }
 }

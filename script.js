@@ -10,7 +10,7 @@ import { SectionTool, SongTool } from './song-tool.js';
 import { SongContext } from './song-context.js';
 import { TapeDeck } from './tape-deck.js';
 import { MetronomeHandler } from './metronome-handler.js';
-import { TapeDeckTool } from './tape-deck-tool.js';
+import { TapeDeckTool, TrackInfoTool } from './tape-deck-tool.js';
 import { RecordHandler } from './record-handler.js';
 import { BeatVU } from './beat-vu.js';
 import { Mixer } from './mixer.js';
@@ -147,6 +147,8 @@ async function main() {
       geminiChat.addState('tapeDeck', tapeDeck);
       const tapeDeckTool = new TapeDeckTool(tapeDeck, songContext);
       geminiChat.addTool(tapeDeckTool);
+      const trackInfoTool = new TrackInfoTool(tapeDeck);
+      geminiChat.addTool(trackInfoTool);
 
       const vu = new BeatVU(audioCtx, document.body, recorder, songContext, tapeDeck);
 

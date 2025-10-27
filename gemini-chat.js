@@ -114,7 +114,9 @@ Inserting time into a recording is difficult or impossible, so be judicious abou
             stateObject[key] = stateful.getJSON();
           }
         }
-        systemInstructions += `\n\nCURRENT STATE:\n${JSON.stringify(stateObject, null, 2)}`;
+        systemInstructions += `\n\nCURRENT STATE:
+Do not send this to the user unless asked to do so. It is already reflected in the user interface.        
+${JSON.stringify(stateObject, null, 2)}`;
       }
 
       const toolDeclarations = Array.from(this.#tools.values()).map(tool => tool.declaration);
