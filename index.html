@@ -4,20 +4,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tape Monkey</title>
+  <title>Song Chart Studio</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-  <h1>Tape Monkey</h1>
-  <div id="chat-container">
-    <div id="chat-history"></div>
-    <div id="chat-input-container">
-      <input type="text" id="chat-input" placeholder="Say 'Monkey! Help me' to start...">
-      <button id="send-button">Send</button>
-      <button id="mic-button">🎤</button>
+  <h1>Song Chart Studio</h1>
+  <div id="main-container">
+    <div id="song-chart-container">
+      <!-- Song chart will be populated here -->
+    </div>
+    <div id="chat-container">
+      <div id="chat-history"></div>
+      <div id="chat-input-container">
+        <input type="text" id="chat-input" placeholder="Say 'Monkey! Help me' to start...">
+        <button id="send-button">Send</button>
+        <button id="mic-button">🎤</button>
+      </div>
     </div>
   </div>
+  <div id="vu-meter-container"></div>
   <script src="script.js" type="module"></script>
 </body>
 

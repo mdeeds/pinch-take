@@ -1,14 +1,17 @@
 // @ts-check
 /** @typedef {import('./gemini-file-manager.js').GeminiFileManager} GeminiFileManager */
 /** @typedef {import('./tool.js').Tool} Tool */
-/** @typedef {import('./state.js').Stateful} Stateful */
+import { Stateful } from './state.js';
 
 /**
  * @typedef {{role: 'user' | 'model', parts: {text: string}[]}} ChatMessage
  * @typedef {import('./tool.js').FunctionResponse} FunctionResponse
  */
 
-export class GeminiChat {
+/**
+ * @implements {Stateful}
+ */
+export class GeminiChat extends Stateful {
   /** @type {string} */
   #apiKey;
   /** @type {GeminiFileManager} */
@@ -30,6 +33,7 @@ export class GeminiChat {
    * @param {(message: string) => void} onMessageCallback - Callback to handle model responses.
    */
   constructor(apiKey, fileManager, onMessageCallback) {
+    super();
     if (!apiKey) throw new Error('apiKey is required.');
     if (!onMessageCallback) throw new Error('onMessageCallback is required.');
     this.#apiKey = apiKey;
@@ -57,6 +61,23 @@ Inserting time into a recording is difficult or impossible, so be judicious abou
   addState(name, stateful) {
     this.#statefuls.set(name, stateful);
   }
+
+  /**
+   * Returns a JSON-serializable object representing the combined state of all registered stateful objects.
+   * @returns {Object}
+   */
+  getJSON() {
+    const stateObject = {};
+    const sortedKeys = Array.from(this.#statefuls.keys()).sort();
+    for (const key of sortedKeys) {
+      const stateful = this.#statefuls.get(key);
+      if (stateful) {
+        stateObject[key] = stateful.getJSON();
+      }
+    }
+    return stateObject;
+  }
+
 
   /**
    * Executes tool calls from the model's response.
@@ -106,17 +127,7 @@ Inserting time into a recording is difficult or impossible, so be judicious abou
 
       let systemInstructions = this.#systemInstructions || '';
       if (this.#statefuls.size > 0) {
-        const stateObject = {};
-        const sortedKeys = Array.from(this.#statefuls.keys()).sort();
-        for (const key of sortedKeys) {
-          const stateful = this.#statefuls.get(key);
-          if (stateful) {
-            stateObject[key] = stateful.getJSON();
-          }
-        }
-        systemInstructions += `\n\nCURRENT STATE:
-Do not send this to the user unless asked to do so. It is already reflected in the user interface.        
-${JSON.stringify(stateObject, null, 2)}`;
+        systemInstructions += `\n\nCURRENT STATE:\nDo not send this to the user unless asked to do so. It is already reflected in the user interface.\n${JSON.stringify(this.getJSON(), null, 2)}`;
       }
 
       const toolDeclarations = Array.from(this.#tools.values()).map(tool => tool.declaration);

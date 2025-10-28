@@ -20,6 +20,7 @@ const chatHistoryElement = document.getElementById('chat-history');
 const chatInputElement = /** @type {HTMLInputElement} */ (document.getElementById('chat-input'));
 const sendButton = document.getElementById('send-button');
 const micButton = document.getElementById('mic-button');
+const songChartContainer = document.getElementById('song-chart-container');
 
 /**
  * 
@@ -90,13 +91,26 @@ async function main() {
   const sectionTool = new SectionTool(songContext);
   geminiChat.addTool(sectionTool);
 
+  /**
+   * Updates the state display area with the current JSON from GeminiChat.
+   */
+  const updateStateDisplay = () => {
+    if (!songChartContainer) return;
+    const state = geminiChat.getJSON();
+    // Using <pre> and <code> for nice formatting of the JSON string
+    songChartContainer.innerHTML = `<pre><code>${JSON.stringify(state, null, 2)}</code></pre>`;
+  };
+
 
   /**
    * Handles sending the user's message from the input field.
    */
   const handleSendMessage = () => {
     const message = chatInputElement.value.trim();
-    if (!message) return; // Don't send empty messages
+    if (!message) {
+      updateStateDisplay(); // Update display even on empty message for state inspection
+      return;
+    }
 
     chatUI.displayMessage(message, 'user-message');
     geminiChat.sendMessage(message).catch(console.error);
@@ -121,6 +135,7 @@ async function main() {
   const handleSpeechResult = (transcript) => {
     // Append the transcribed command to the input field
     chatInputElement.value += ' ' + transcript.trim();
+    updateStateDisplay();
   };
 
   const speechToText = new SpeechToText(handleSpeechResult);
@@ -150,7 +165,7 @@ async function main() {
       const trackInfoTool = new TrackInfoTool(tapeDeck);
       geminiChat.addTool(trackInfoTool);
 
-      const vu = new BeatVU(audioCtx, document.body, recorder, songContext, tapeDeck);
+      const vu = new BeatVU(audioCtx, /** @type {HTMLElement} */(document.getElementById('vu-meter-container')), recorder, songContext, tapeDeck);
 
       const metronomeHandler = await MetronomeHandler.create(
         audioCtx, songContext, tapeDeck);
@@ -158,6 +173,7 @@ async function main() {
       const metronomeTool = new MetronomeTool(metronomeHandler);
       geminiChat.addTool(metronomeTool);
       console.log('TapeDeck initialized and connected to default I/O.');
+      updateStateDisplay(); // Initial state display
     } catch (err) {
       console.error('Failed to initialize audio components:', err);
     }
