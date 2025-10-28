@@ -28,7 +28,7 @@ export class TapeDeckTool {
         },
         trackNumber: {
           type: 'INTEGER',
-          description: 'The track number to arm for recording. Required if action is "record".',
+          description: 'The track number to arm for recording. If unspecified, `record` will create a new track.',
         },
         section: {
           type: 'STRING',
@@ -85,10 +85,7 @@ export class TapeDeckTool {
       this.#tapeDeck.stop();
       responseText = 'Playback stopped.';
     } else if (args.action === 'record') {
-      if (args.trackNumber === undefined) {
-        return MakeToolResponse(this, 'Error: trackNumber is required for recording.');
-      }
-      this.#tapeDeck.arm(args.trackNumber);
+      args.trackNumber = this.#tapeDeck.arm(args.trackNumber);
       this.#tapeDeck.startPlayback(startTimeS, endTimeS, { punchInS: startTimeS, punchOutS: endTimeS });
 
       await this.#tapeDeck.waitForEnd();

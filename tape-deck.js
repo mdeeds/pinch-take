@@ -191,30 +191,14 @@ export class TapeDeck {
 
     const audioSlice = trackBuffer.getChannelData(0).subarray(startFrame, stopFrame);
     const displayName = `Track ${trackNumber} (${startTimeS.toFixed(2)}s-${stopTimeS.toFixed(2)}s)`;
+
+    // const fileName = `track-${trackNumber}-slice.wav`;
+    // const downloadLink = this.#fileManager.createDownloadLink(
+    //   audioSlice, this.#audioCtx.sampleRate, `Download ${fileName}`, fileName);
+    // document.body.appendChild(downloadLink);
+    // console.log('Link created.');
+
     return this.#fileManager.uploadWav(audioSlice, this.#audioCtx.sampleRate, displayName);
-  }
-
-  /**
-   * Extracts a slice of audio from a track and returns it as a fileData object for Gemini.
-   * @param {number} trackNumber The track to get the slice from.
-   * @param {number} startTimeS The start time of the slice in seconds.
-   * @param {number} stopTimeS The end time of the slice in seconds.
-   * @returns {Promise<{mimeType: string, data: string}>} A promise that resolves with the file data object.
-   */
-  async getTrackSliceAsFileData(trackNumber, startTimeS, stopTimeS) {
-    if (trackNumber < 0 || trackNumber >= this.#trackBuffers.length) {
-      throw new Error(`Invalid track number: ${trackNumber}`);
-    }
-    const trackBuffer = this.#trackBuffers[trackNumber];
-    const startFrame = Math.round(startTimeS * this.#audioCtx.sampleRate);
-    const stopFrame = Math.round(stopTimeS * this.#audioCtx.sampleRate);
-
-    if (stopFrame - startFrame <= 0) {
-      throw new Error('Stop time must be after start time.');
-    }
-
-    const audioSlice = trackBuffer.getChannelData(0).subarray(startFrame, stopFrame);
-    return this.#fileManager.encodeWavAsFileData(audioSlice, this.#audioCtx.sampleRate);
   }
 
   stop() {
@@ -243,14 +227,18 @@ export class TapeDeck {
 
   /**
    * Arms a track for recording. Creates tracks if they don't exist.
-   * @param {number} trackNumber The track to arm.
+   * @param {number | null | undefined} trackNumber The track to arm.
    */
   arm(trackNumber) {
+    if (trackNumber === null || trackNumber === undefined) {
+      trackNumber = this.#trackBuffers.length;
+    }
     while (this.#trackBuffers.length <= trackNumber) {
       this.#addTrack();
     }
     this.#armedTrack = trackNumber;
     console.log(`Track ${trackNumber} armed.`);
+    return trackNumber;
   }
 
   /**
@@ -300,7 +288,7 @@ export class TapeDeck {
     }
 
     // Calculate the start frame for this sample batch in "tape time"
-    const trackStartFrame = data.startFrame - this.#tapeZeroFrame;
+    let trackStartFrame = data.startFrame - this.#tapeZeroFrame;
     const trackEndFrame = trackStartFrame + data.samples.length;
 
     // Don't record samples from before the punch-in point or after the punch-out point.
@@ -310,7 +298,12 @@ export class TapeDeck {
     if (this.#punchOutFrame >= 0 && trackStartFrame > this.#punchOutFrame) {
       return;
     }
-    this.#setBufferData(data.samples, 0, this.#armedTrack, trackStartFrame);
+    let dataSamples = data.samples;
+    if (trackStartFrame < 0) {
+      dataSamples = data.samples.subarray(-trackStartFrame);
+      trackStartFrame = 0;
+    }
+    this.#setBufferData(dataSamples, 0, this.#armedTrack, trackStartFrame);
   }
 
   /**

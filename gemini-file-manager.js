@@ -163,4 +163,22 @@ export class GeminiFileManager {
     const uploadResult = await uploadResponse.json();
     return new FileData(wavBlob.type, uploadResult.file.name);
   }
+
+  /**
+   * Creates a downloadable link for the given audio samples as a WAV file.
+   * @param {Float32Array} samples The raw audio samples.
+   * @param {number} sampleRate The sample rate of the audio.
+   * @param {string} [linkText='Download WAV'] The text to display for the link.
+   * @param {string} [fileName='download.wav'] The name of the file to be downloaded.
+   * @returns {HTMLAnchorElement} An anchor element that triggers a download when clicked.
+   */
+  createDownloadLink(samples, sampleRate, linkText = 'Download WAV', fileName = 'download.wav') {
+    const wavBlob = this.#encodeWav(samples, sampleRate);
+    const url = URL.createObjectURL(wavBlob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.textContent = linkText;
+    return anchor;
+  }
 }

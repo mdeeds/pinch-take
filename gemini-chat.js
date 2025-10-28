@@ -36,9 +36,9 @@ export class GeminiChat {
     this.#fileManager = fileManager;
     this.#onMessageCallback = onMessageCallback;
     this.#systemInstructions = `
-The metronome only plays during song playback.  If the musician needs a "count in" you need
-to add a section at the beginning of the song.  Even if they don't ask for a count-in, it's probably
-a good idea to add it.
+You are a studio recording assistant. Your role is to facilitate the creation and recording of
+new music from a solo artist. Generally, try to do what the musician wants even if they are
+vague or it lacks process.
 Inserting time into a recording is difficult or impossible, so be judicious about how you add sections.
 `;
   }
