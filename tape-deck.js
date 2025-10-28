@@ -23,6 +23,98 @@ export class TrackInfo {
   name = "";
 }
 
+export class TrackStats {
+  /** @type {number} The peak absolute sample value in the track, in dB. */
+  peakDB = -Infinity;
+  /** @type {number} The Root Mean Square of the entire track, in dB. */
+  rmsDB = -Infinity;
+  /** @type {number} The maximum RMS value found within any 2-second window of the track, in dB. */
+  maxRunningRmsDB = -Infinity;
+
+  /**
+   * @param {Float32Array} samples The raw audio samples.
+   * @param {number} sampleRate The sample rate of the audio.
+   */
+  constructor(samples, sampleRate) {
+    if (!samples || samples.length === 0) {
+      return;
+    }
+
+    console.time('TrackStats');
+
+    let totalSumOfSquares = 0;
+    let peak = 0;
+
+    // --- Calculate overall Peak and RMS ---
+    for (let i = 0; i < samples.length; i++) {
+      const sample = samples[i];
+      const absSample = Math.abs(sample);
+      if (absSample > peak) {
+        peak = absSample;
+      }
+      totalSumOfSquares += sample * sample;
+    }
+    const rms = Math.sqrt(totalSumOfSquares / samples.length);
+
+    // --- Calculate maximum running 2-second RMS ---
+    const windowSizeInSamples = Math.round(2 * sampleRate);
+    let maxRunningRms = 0;
+
+    if (samples.length < windowSizeInSamples) {
+      maxRunningRms = rms; // Not enough samples for a full window
+    } else {
+      let currentWindowSumOfSquares = 0;
+      // Initialize with the first window's sum of squares
+      for (let i = 0; i < windowSizeInSamples; i++) {
+        currentWindowSumOfSquares += samples[i] * samples[i];
+      }
+      maxRunningRms = Math.sqrt(currentWindowSumOfSquares / windowSizeInSamples);
+
+      // Slide the window across the rest of the samples
+      for (let i = windowSizeInSamples; i < samples.length; i++) {
+        const currentRms = Math.sqrt(currentWindowSumOfSquares / windowSizeInSamples);
+        if (currentRms > maxRunningRms) {
+          maxRunningRms = currentRms;
+        }
+        // Subtract the sample that's sliding out of the window and add the new one
+        const oldSample = samples[i - windowSizeInSamples];
+        const newSample = samples[i];
+        currentWindowSumOfSquares += (newSample * newSample) - (oldSample * oldSample);
+      }
+    }
+
+    // Convert linear values to dB. A value of 0 results in -Infinity.
+    this.peakDB = 20 * Math.log10(peak);
+    this.rmsDB = 20 * Math.log10(rms);
+    this.maxRunningRmsDB = 20 * Math.log10(maxRunningRms);
+
+    console.timeEnd('TrackStats');
+  }
+}
+
+class Track {
+  /** @type {AudioBuffer} */
+  buffer;
+  /** @type {AudioBufferSourceNode | null} */
+  sourceNode = null;
+  /** @type {TrackInfo} */
+  info;
+  /** @type {GainNode} */
+  gainNode;
+  /** @type {TrackStats | null} */
+  stats = null;
+
+  /**
+   * @param {AudioBuffer} buffer
+   * @param {TrackInfo} info
+   * @param {GainNode} gainNode
+   */
+  constructor(buffer, info, gainNode) {
+    this.buffer = buffer;
+    this.info = info;
+    this.gainNode = gainNode;
+  }
+}
 /**
  * @implements {Stateful}
  */
@@ -56,17 +148,8 @@ export class TapeDeck {
   /** @type {(() => void)[]} */
   #resolveStops = [];
 
-  /** @type {AudioBuffer[]} */
-  #trackBuffers = [];
-
-  /** @type {AudioBufferSourceNode[]} */
-  #trackNodes = [];
-
-  /** @type {TrackInfo[]} */
-  #trackInfos = [];
-
-  /** @type {GainNode[]} */
-  #trackGains = [];
+  /** @type {Track[]} */
+  #tracks = [];
 
   static MAX_TRACK_LENGTH_S = 60 * 5; // 5 minutes
 
@@ -101,11 +184,13 @@ export class TapeDeck {
 
   #disconnect() {
     // Stop and discard all current track nodes. They are one-shot and cannot be restarted.
-    for (const node of this.#trackNodes) {
-      node.stop();
-      node.disconnect();
+    for (const track of this.#tracks) {
+      if (track.sourceNode) {
+        track.sourceNode.stop();
+        track.sourceNode.disconnect();
+        track.sourceNode = null;
+      }
     }
-    this.#trackNodes = [];
   }
 
   /**
@@ -132,14 +217,12 @@ export class TapeDeck {
     }
     // Start new source nodes for each track.
     this.#disconnect();
-    if (this.#trackBuffers.length != this.#trackGains.length) {
-      throw new Error("Internal error: #trackBuffers and #trackGains must be the same length.")
-    }
-    for (let i = 0; i < this.#trackBuffers.length; i++) {
+    for (let i = 0; i < this.#tracks.length; i++) {
+      const track = this.#tracks[i];
       const durationS = stopTimeS >= 0 ? stopTimeS - startTimeS : undefined;
       const sourceNode = this.#audioCtx.createBufferSource();
-      sourceNode.buffer = this.#trackBuffers[i];
-      sourceNode.connect(this.#trackGains[i]);
+      sourceNode.buffer = track.buffer;
+      sourceNode.connect(track.gainNode);
       sourceNode.start(nowTimeS, startTimeS, durationS);
       if (i === 0 && stopTimeS >= 0) {
         sourceNode.onended = () => {
@@ -150,7 +233,7 @@ export class TapeDeck {
           }
         };
       }
-      this.#trackNodes.push(sourceNode);
+      track.sourceNode = sourceNode;
     }
 
     for (const callback of this.#onTransportEventCallbacks) {
@@ -176,10 +259,10 @@ export class TapeDeck {
    * @returns {Promise<FileData>} A promise that resolves with the uploaded file's data.
    */
   async getTrackSlice(trackNumber, startTimeS, stopTimeS) {
-    if (trackNumber < 0 || trackNumber >= this.#trackBuffers.length) {
+    if (trackNumber < 0 || trackNumber >= this.#tracks.length) {
       throw new Error(`Invalid track number: ${trackNumber}`);
     }
-    const trackBuffer = this.#trackBuffers[trackNumber];
+    const trackBuffer = this.#tracks[trackNumber].buffer;
 
     const startFrame = Math.round(startTimeS * this.#audioCtx.sampleRate);
     const stopFrame = Math.round(stopTimeS * this.#audioCtx.sampleRate);
@@ -216,6 +299,9 @@ export class TapeDeck {
       callback(event);
     }
     this.#resolveWaitingStops();
+    for (const track of this.#tracks) {
+      track.stats = new TrackStats(track.buffer.getChannelData(0), this.#audioCtx.sampleRate);
+    }
   }
 
   #resolveWaitingStops() {
@@ -231,9 +317,9 @@ export class TapeDeck {
    */
   arm(trackNumber) {
     if (trackNumber === null || trackNumber === undefined) {
-      trackNumber = this.#trackBuffers.length;
+      trackNumber = this.#tracks.length;
     }
-    while (this.#trackBuffers.length <= trackNumber) {
+    while (this.#tracks.length <= trackNumber) {
       this.#addTrack();
     }
     this.#armedTrack = trackNumber;
@@ -247,10 +333,10 @@ export class TapeDeck {
    * @param {string} name 
    */
   setTrackName(trackNumber, name) {
-    if (trackNumber < 0 || trackNumber >= this.#trackInfos.length) {
+    if (trackNumber < 0 || trackNumber >= this.#tracks.length) {
       throw new Error(`Invalid track number: ${trackNumber}`);
     }
-    this.#trackInfos[trackNumber].name = name;
+    this.#tracks[trackNumber].info.name = name;
   }
 
   /**
@@ -258,22 +344,21 @@ export class TapeDeck {
    * @param {number} trackNumber 
    */
   getTrackName(trackNumber) {
-    if (trackNumber < 0 || trackNumber >= this.#trackInfos.length) {
+    if (trackNumber < 0 || trackNumber >= this.#tracks.length) {
       throw new Error(`Invalid track number: ${trackNumber}`);
     }
-    return this.#trackInfos[trackNumber].name;
+    return this.#tracks[trackNumber].info.name;
   }
 
   #addTrack() {
-    const newTrackIndex = this.#trackBuffers.length;
+    const newTrackIndex = this.#tracks.length;
     const trackLength = this.#audioCtx.sampleRate * TapeDeck.MAX_TRACK_LENGTH_S;
     // 1 = mono track
     const buffer = this.#audioCtx.createBuffer(1, trackLength, this.#audioCtx.sampleRate);
-    this.#trackBuffers.push(buffer);
     const gainNode = this.#audioCtx.createGain();
-    this.#trackGains.push(gainNode);
     this.#mixer.patch(gainNode, newTrackIndex);
-    this.#trackInfos.push({ trackNumber: newTrackIndex, name: '' });
+    const trackInfo = { trackNumber: newTrackIndex, name: '' };
+    this.#tracks.push(new Track(buffer, trackInfo, gainNode));
 
     // Note: We don't create the source node here because they are one-shot and must be created at playback time.
   }
@@ -314,23 +399,28 @@ export class TapeDeck {
    * @param {number} trackStartFrame The starting sample index within the track buffer to write to.
    */
   #setBufferData(inputAudioSamples, inputStartFrame, trackNumber, trackStartFrame) {
-    if (trackNumber < 0 || trackNumber >= this.#trackBuffers.length) {
+    if (trackNumber < 0 || trackNumber >= this.#tracks.length) {
       throw new Error(`Invalid track number: ${trackNumber}`);
     }
-    const trackBuffer = this.#trackBuffers[trackNumber];
+    const trackBuffer = this.#tracks[trackNumber].buffer;
     const trackChannelData = trackBuffer.getChannelData(0); // Assuming mono tracks
     const samplesToCopy = inputAudioSamples.subarray(inputStartFrame);
     trackChannelData.set(samplesToCopy, trackStartFrame);
   }
 
   /**
-   * @returns {{trackCount: number, armedTrack: number, trackInfo: TrackInfo[]}}
+   * @returns {{trackCount: number, armedTrack: number, trackInfo: TrackInfo[], trackStats: (TrackStats | null)[]}}
    */
   getJSON() {
+    for (const track of this.#tracks) {
+      track.stats = new TrackStats(track.buffer.getChannelData(0), this.#audioCtx.sampleRate);
+    }
+
     return {
-      trackCount: this.#trackBuffers.length,
+      trackCount: this.#tracks.length,
       armedTrack: this.#armedTrack,
-      trackInfo: this.#trackInfos,
+      trackInfo: this.#tracks.map(t => t.info),
+      trackStats: this.#tracks.map(t => t.stats),
     };
   }
 }
