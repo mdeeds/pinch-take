@@ -36,7 +36,7 @@ export class State {
 
   /**
    * @param {string} key
-   * @returns { State | number | string | State[] }
+   * @returns { State | number | string | boolean | State[] }
    */
   get(key) {
     return this.data[key] || this.state.get(key);
@@ -44,7 +44,7 @@ export class State {
 
   /**
    * @param {string} key
-   * @param {number | string } value
+   * @param {number | string | boolean } value
    */
   set(key, value) {
     this.data[key] = value;
@@ -54,7 +54,7 @@ export class State {
 
   /**
    * @param {string} key
-   * @param {number | string} value
+   * @param {number | string | boolean } value
    */
   notify(key, value) {
     const callbacks = this.fieldCallbacks.get(key);

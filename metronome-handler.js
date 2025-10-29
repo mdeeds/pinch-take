@@ -1,22 +1,7 @@
 import { SongContext } from "./song-context.js";
 import { Stateful } from "./stateful.js";
+import { State } from "./state.js";
 import { TapeDeck, TransportEvent } from "./tape-deck.js";
-
-export class MetronomeSettings {
-  /** @type {boolean} */
-  onWhenRecording;
-  /** @type {boolean} */
-  onWhenPlaying;
-
-  /**
-   * @param {{onWhenRecording: boolean, onWhenPlaying: boolean}} args
-   */
-  constructor(args) {
-    this.onWhenRecording = args.onWhenRecording;
-    this.onWhenPlaying = args.onWhenPlaying;
-  }
-
-}
 
 /**
  * @implements {Stateful}
@@ -27,9 +12,9 @@ export class MetronomeHandler {
   /** @type {AudioContext} */
   #audioCtx;
 
-  settings = new MetronomeSettings({
+  state = new State({
     onWhenRecording: true, onWhenPlaying: true
-  });
+  }, null);
 
   /** @type {SongContext} */
   #songContext;
@@ -123,10 +108,10 @@ export class MetronomeHandler {
   }
 
   /**
-   * @returns {MetronomeSettings}
+   * @returns {Object}
    */
   getJSON() {
-    return this.settings;
+    return this.state.getJSON();
   }
 
 }
