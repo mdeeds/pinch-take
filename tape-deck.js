@@ -5,7 +5,7 @@ import { GeminiFileManager } from "./gemini-file-manager.js";
 import { MetronomeHandler } from "./metronome-handler.js";
 import { Mixer } from "./mixer.js";
 import { RecordHandler } from "./record-handler.js";
-import { Stateful } from "./state.js";
+import { Stateful } from "./stateful.js";
 
 export class TransportEvent {
   /** @type {string} */

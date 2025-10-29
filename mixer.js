@@ -1,7 +1,7 @@
 // @ts-check
 
 import { ReverbEffect } from './reverb.js';
-import { Stateful } from './state.js';
+import { Stateful } from './stateful.js';
 
 /**
  * Represents a single channel strip in the mixer.

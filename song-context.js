@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Stateful } from "./state.js";
+import { Stateful } from "./stateful.js";
 
 /**
  * @implements {Stateful}

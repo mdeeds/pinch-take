@@ -1,7 +1,7 @@
 // @ts-check
 /** @typedef {import('./gemini-file-manager.js').GeminiFileManager} GeminiFileManager */
 /** @typedef {import('./tool.js').Tool} Tool */
-import { Stateful } from './state.js';
+import { Stateful } from './stateful.js';
 
 /**
  * @typedef {{role: 'user' | 'model', parts: {text: string}[]}} ChatMessage

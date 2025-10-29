@@ -1,5 +1,5 @@
 import { SongContext } from "./song-context.js";
-import { Stateful } from "./state.js";
+import { Stateful } from "./stateful.js";
 import { TapeDeck, TransportEvent } from "./tape-deck.js";
 
 export class MetronomeSettings {
