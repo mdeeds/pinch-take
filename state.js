@@ -92,7 +92,19 @@ export class State {
    * @returns { State | number | string | boolean | StateList }
    */
   get(key) {
-    return this.protectedData[key] || this.state.get(key);
+    return this.protectedData[key] || this.#children.get(key);
+  }
+
+  /**
+   * @param {string} key
+   * @returns { StateList }
+   */
+  getList(key) {
+    const child = this.#children.get(key);
+    if (child instanceof StateList) {
+      return child;
+    }
+    throw new Error('Not a StateList: ' + key);
   }
 
   /**
