@@ -58,10 +58,14 @@ export class BeatVU {
       beatsPerMeasure: this.#songContext.beatsPerMeasure
     });
 
-    this.#songContext.onSongTimeChanged(() => this.setTiming({
-      bpm: this.#songContext.tempo,
-      beatsPerMeasure: this.#songContext.beatsPerMeasure
-    }));
+    const updateTiming = () => {
+      this.setTiming({
+        bpm: this.#songContext.tempo,
+        beatsPerMeasure: this.#songContext.beatsPerMeasure
+      });
+    };
+    this.#songContext.state.addFieldCallback('tempo', updateTiming);
+    this.#songContext.state.addFieldCallback('beatsPerMeasure', updateTiming);
 
     this.#recordHandler.addSampleCallback(this.#handleSamples.bind(this));
     this.#animate();

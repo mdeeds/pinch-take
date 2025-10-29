@@ -95,12 +95,13 @@ async function main() {
    * Updates the state display area with the current JSON from GeminiChat.
    */
   const updateStateDisplay = () => {
+    console.log('updateStateDisplay');
     if (!songChartContainer) return;
     const state = geminiChat.getJSON();
     // Using <pre> and <code> for nice formatting of the JSON string
     songChartContainer.innerHTML = `<pre><code>${JSON.stringify(state, null, 2)}</code></pre>`;
   };
-
+  songContext.state.addBroadCallback(updateStateDisplay);
 
   /**
    * Handles sending the user's message from the input field.
@@ -108,7 +109,6 @@ async function main() {
   const handleSendMessage = () => {
     const message = chatInputElement.value.trim();
     if (!message) {
-      updateStateDisplay(); // Update display even on empty message for state inspection
       return;
     }
 
@@ -135,7 +135,6 @@ async function main() {
   const handleSpeechResult = (transcript) => {
     // Append the transcribed command to the input field
     chatInputElement.value += ' ' + transcript.trim();
-    updateStateDisplay();
   };
 
   const speechToText = new SpeechToText(handleSpeechResult);

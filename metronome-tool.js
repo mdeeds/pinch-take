@@ -1,7 +1,7 @@
 // @ts-check
 
 import { MakeToolResponse } from './tool.js';
-import { MetronomeSettings, MetronomeHandler } from './metronome-handler.js';
+import { MetronomeHandler } from './metronome-handler.js';
 
 /**
  * @typedef {import('./tool.js').Tool} Tool
@@ -45,13 +45,17 @@ export class MetronomeTool {
   }
 
   /**
-   * @param {MetronomeSettings} args
+   * @param {any} args
    * @returns {Promise<FunctionResponse>}
    */
   async run(args) {
-    Object.assign(this.#metronome.settings, args);
-    console.log(`Setting metronome: `, this.#metronome.settings);
-    const responseText = `Metronome set to ${JSON.stringify(this.#metronome.settings)}.`;
+    if (args.onWhenRecording !== undefined) {
+      this.#metronome.state.set('onWhenRecording', args.onWhenRecording);
+    }
+    if (args.onWhenPlaying !== undefined) {
+      this.#metronome.state.set('onWhenPlaying', args.onWhenPlaying);
+    }
+    const responseText = `Metronome updated.`;
     return MakeToolResponse(this, responseText);
   }
 }

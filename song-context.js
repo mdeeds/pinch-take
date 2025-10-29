@@ -44,7 +44,7 @@ export class SectionContext {
  */
 export class SongContext {
   /** @type {State} */
-  #state;
+  state;
 
   /** @type {SectionContext[]} */
   #sections = [];
@@ -53,12 +53,12 @@ export class SongContext {
   #onSongTimeChangedCallbacks = [];
 
   constructor() {
-    this.#state = new State({
+    this.state = new State({
       tempo: 120,
       beatsPerMeasure: 4,
       songLengthS: 0.0,
     });
-    this.#state.addList('sections');
+    this.state.addList('sections');
   }
 
   /**
@@ -68,16 +68,15 @@ export class SongContext {
     this.#onSongTimeChangedCallbacks.push(callback);
   }
 
-  get tempo() { return this.#state.getNumber('tempo'); }
-  get beatsPerMeasure() { return this.#state.getNumber('beatsPerMeasure'); }
-  get songLengthS() { return this.#state.getNumber('songLengthS'); }
-
+  get tempo() { return this.state.getNumber('tempo'); }
+  get beatsPerMeasure() { return this.state.getNumber('beatsPerMeasure'); }
+  get songLengthS() { return this.state.getNumber('songLengthS'); }
 
   /**
    * @returns {any}
    */
   getJSON() {
-    return this.#state.getJSON();
+    return this.state.getJSON();
   }
 
   /**
@@ -90,7 +89,7 @@ export class SongContext {
       section.recalculateDuration(this.tempo, this.beatsPerMeasure);
       currentSongLengthS += section.state.getNumber('durationS');
     }
-    this.#state.set('songLengthS', currentSongLengthS);
+    this.state.set('songLengthS', currentSongLengthS);
   }
 
   /**
@@ -98,8 +97,8 @@ export class SongContext {
    * @param {{tempo: number, beatsPerMeasure: number}} param0 
    */
   setSongTime({ tempo, beatsPerMeasure }) {
-    if (tempo) this.#state.set('tempo', tempo);
-    if (beatsPerMeasure) this.#state.set('beatsPerMeasure', beatsPerMeasure);
+    if (tempo) this.state.set('tempo', tempo);
+    if (beatsPerMeasure) this.state.set('beatsPerMeasure', beatsPerMeasure);
     this.#recalculateSections();
     for (const callback of this.#onSongTimeChangedCallbacks) {
       callback(this);
@@ -116,9 +115,9 @@ export class SongContext {
     });
     section.recalculateDuration(this.tempo, this.beatsPerMeasure);
     this.#sections.push(section);
-    this.#state.set('songLengthS', this.songLengthS + section.state.getNumber('durationS'));
+    this.state.set('songLengthS', this.songLengthS + section.state.getNumber('durationS'));
     // The `add` method on the StateList will handle adding the child and its data.
-    this.#state.getList('sections').add(section.state);
+    this.state.getList('sections').add(section.state);
   }
 
   /**

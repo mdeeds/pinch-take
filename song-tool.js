@@ -51,7 +51,7 @@ export class SectionTool {
   async run(args) {
     try {
       this.#songContext.addSection(args);
-      const responseText = `Added section "${args.name}"`;
+      const responseText = `Successfully added section "${args.name}"`;
       return MakeToolResponse(this, responseText);
     } catch (error) {
       console.error('Error adding section:', error);

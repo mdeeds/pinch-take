@@ -5,23 +5,28 @@ export class StateList {
   /** @type {State | null} */
   #parentState = null;
 
-  #dataList = [];
+  #dataList = undefined;
 
   /**
    * @param {State[]} initialList
    */
   constructor(parentState, dataList) {
+    if (!parentState) {
+      throw new Error('Parent state required.');
+    }
     this.#parentState = parentState;
-    this.dataList = dataList;
+    this.#dataList = dataList;
   }
 
   /**
    * @param {State} item
    */
   add(item) {
+    // console.log('Adding', item.getJSON());
     this.#list.push(item);
     this.#dataList.push(item.protectedData);
-    this.#parentState.addChild(item);
+    this.#parentState.addChild(null, item);
+    this.#parentState.notifyAll();
   }
 
   /**
@@ -51,7 +56,7 @@ export class State {
   /** @type {State | null} */
   #parentState = null;
 
-  /** @type {Map<string, Set<(number)=>void>} */
+  /** @type {Map<string, Set<(value: any) => void>>} */
   #fieldCallbacks = new Map();
 
   /** @type {Set<()=>void>} */
@@ -72,7 +77,9 @@ export class State {
    * @param {State} child
    */
   addChild(key, child) {
-    this.#children.set(key, child);
+    if (key) {
+      this.#children.set(key, child);
+    }
     child.#parentState = this;
   }
 
@@ -84,7 +91,7 @@ export class State {
     this.protectedData[key] = dataList;
     const list = new StateList(this, dataList);
     this.#children.set(key, list);
-
+    this.notifyAll();
   }
 
   /**
@@ -135,6 +142,7 @@ export class State {
    * @param {number | string | boolean } value
    */
   notify(key, value) {
+    // console.log(`Notify: ${key} = ${value}`);
     const callbacks = this.#fieldCallbacks.get(key);
     if (callbacks) {
       for (const callback of callbacks) {
@@ -144,12 +152,36 @@ export class State {
   }
 
   notifyAll() {
+    // console.log('NotifyAll', this.getJSON());
     for (const callback of this.#broadCallbacks) {
       callback();
     }
     if (this.#parentState) {
       this.#parentState.notifyAll();
+    } else {
+      // console.log('No parent.');
     }
+  }
+
+  /**
+   * Adds a callback that fires when a specific field is changed via `set()`.
+   * @param {string} key The name of the field to watch.
+   * @param {(value: any) => void} callback The function to call with the new value.
+   */
+  addFieldCallback(key, callback) {
+    if (!this.#fieldCallbacks.has(key)) {
+      this.#fieldCallbacks.set(key, new Set());
+    }
+    this.#fieldCallbacks.get(key)?.add(callback);
+  }
+
+  /**
+   * Adds a callback that fires whenever any field in this state object (or any of its children) changes.
+   * The callback receives no arguments.
+   * @param {() => void} callback The function to call.
+   */
+  addBroadCallback(callback) {
+    this.#broadCallbacks.add(callback);
   }
 
   /**
@@ -157,7 +189,7 @@ export class State {
    * @returns {Object}
    */
   getJSON() {
-    return = JSON.parse(JSON.stringify(this.protectedData));
+    return JSON.parse(JSON.stringify(this.protectedData));
   }
 
 }
