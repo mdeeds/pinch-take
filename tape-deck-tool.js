@@ -24,7 +24,7 @@ export class TapeDeckTool {
       properties: {
         action: {
           type: 'STRING',
-          description: "The action to perform: 'play', 'stop', or 'record'.",
+          description: "The action to perform: 'play', 'stop', 'record', or 'loop'.",
         },
         trackNumber: {
           type: 'INTEGER',
@@ -55,7 +55,7 @@ export class TapeDeckTool {
   }
 
   /**
-   * @param {{action: 'play' | 'stop' | 'record', trackNumber?: number, section?: string}} args
+   * @param {{action: 'play' | 'stop' | 'record' | 'loop', trackNumber?: number, section?: string}} args
    * @returns {Promise<FunctionResponse>}
    */
   async run(args) {
@@ -80,6 +80,13 @@ export class TapeDeckTool {
         responseText = `Playback started for section "${args.section}".`;
       } else {
         responseText = 'Playback started.';
+      }
+    } else if (args.action === 'loop') {
+      this.#tapeDeck.startPlayback(startTimeS, endTimeS, {}, { loopStartS: startTimeS });
+      if (args.section) {
+        responseText = `Looping playback for section "${args.section}".`;
+      } else {
+        responseText = 'Looping playback started.';
       }
     } else if (args.action === 'stop') {
       this.#tapeDeck.stop();

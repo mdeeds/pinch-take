@@ -12,7 +12,7 @@ import { TapeDeck } from './tape-deck.js';
 import { MetronomeHandler } from './metronome-handler.js';
 import { TapeDeckTool, TrackInfoTool } from './tape-deck-tool.js';
 import { RecordHandler } from './record-handler.js';
-import { BeatVU } from './beat-vu.js';
+// import { BeatVU } from './beat-vu.js';
 import { Mixer } from './mixer.js';
 import { MixerTool } from './mixer-tool.js';
 
@@ -164,7 +164,7 @@ async function main() {
       const trackInfoTool = new TrackInfoTool(tapeDeck);
       geminiChat.addTool(trackInfoTool);
 
-      const vu = new BeatVU(audioCtx, /** @type {HTMLElement} */(document.getElementById('vu-meter-container')), recorder, songContext, tapeDeck);
+      // const vu = new BeatVU(audioCtx, /** @type {HTMLElement} */(document.getElementById('vu-meter-container')), recorder, songContext, tapeDeck);
 
       const metronomeHandler = await MetronomeHandler.create(
         audioCtx, songContext, tapeDeck);

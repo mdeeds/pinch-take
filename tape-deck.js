@@ -198,8 +198,10 @@ export class TapeDeck {
    * @param {number} startTimeS The time on the tape to start playback from.
    * @param {number} stopTimeS The time on the tape to stop playback. If -1, plays to the end.
    * @param {{punchInS?: number, punchOutS?: number}} [punchOptions]
+   * @param {{loopStartS?: number}} [loopOptions]
    */
-  startPlayback(startTimeS, stopTimeS = -1, { punchInS, punchOutS } = {}) {
+  startPlayback(startTimeS, stopTimeS = -1,
+    { punchInS, punchOutS } = {}, { loopStartS } = {}) {
     const nowTimeS = this.#audioCtx.currentTime;
     const event = new TransportEvent();
     event.transportAction = 'play';
@@ -215,6 +217,11 @@ export class TapeDeck {
     if (this.#punchInFrame !== -1 && this.#armedTrack === -1) {
       console.warn('Punch-in time set but no track is armed.');
     }
+
+    const isRecording = this.#punchInFrame !== -1 && this.#armedTrack !== -1;
+    if (isRecording && loopStartS !== undefined) {
+      console.warn('Looping is not supported during recording. Ignoring loop parameters.');
+    }
     // Start new source nodes for each track.
     this.#disconnect();
     for (let i = 0; i < this.#tracks.length; i++) {
@@ -224,7 +231,14 @@ export class TapeDeck {
       sourceNode.buffer = track.buffer;
       sourceNode.connect(track.gainNode);
       sourceNode.start(nowTimeS, startTimeS, durationS);
-      if (i === 0 && stopTimeS >= 0) {
+
+      if (loopStartS !== undefined && stopTimeS >= 0 && !isRecording) {
+        sourceNode.loop = true;
+        sourceNode.loopStart = loopStartS;
+        sourceNode.loopEnd = stopTimeS;
+      }
+
+      if (i === 0 && stopTimeS >= 0 && !sourceNode.loop) {
         sourceNode.onended = () => {
           // Only resolve if the transport is still considered playing.
           // If stop() was called, tapeZeroFrame would be -1.

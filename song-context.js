@@ -22,6 +22,11 @@ export class SectionContext {
     });
   }
 
+  get name() { return this.state.get('name'); }
+  get measureCount() { return this.state.getNumber('measureCount'); }
+  get startTimeS() { return this.state.getNumber('startTimeS'); }
+  get durationS() { return this.state.getNumber('durationS'); }
+
   /**
    * @param {number} bpm
    * @param {number} beatsPerMeasure
