@@ -27,6 +27,7 @@ const songChartContainer = document.getElementById('song-chart-container');
  * @param {AudioContext} audioCtx 
  */
 async function getDefaultAudioInput(audioCtx) {
+  console.log('Audio Context sample rate:', audioCtx.sampleRate);
   const constraints = {
     audio: {
       echoCancellation: false,
@@ -38,6 +39,13 @@ async function getDefaultAudioInput(audioCtx) {
   try {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     console.log('Acquired audio stream with constraints:', constraints.audio);
+    const audioTrack = stream.getAudioTracks()[0];
+    const settings = audioTrack.getSettings();
+    console.log('Audio Context sample rate:', audioCtx.sampleRate);
+    console.log('Stream sample rate:', settings.sampleRate);
+    if (settings.sampleSize) {
+      console.log('Stream bits per sample (sampleSize):', settings.sampleSize);
+    }
     return audioCtx.createMediaStreamSource(stream);
   } catch (err) {
     throw new Error(`Error getting audio input: ${err.message}`);
