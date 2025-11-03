@@ -39,7 +39,7 @@ export class ReverbEffect {
     // Solving for t_delay gives: t_delay = -t_halflife * log2(g_feedback)
     // For g_feedback = 0.5, t_delay = t_halflife.
     // Solving for g_feedback gives: g_feedback = 2.0 ^ -(t_delay / t_halflife)
-    const DELAY_TIME = halfLifeSeconds;
+    const DELAY_TIME = halfLifeSeconds * 0.1;
     const FEEDBACK_GAIN = Math.pow(2.0, -DELAY_TIME / halfLifeSeconds);
     this.#delay = audioCtx.createDelay(DELAY_TIME);
     this.#delay.delayTime.value = DELAY_TIME;
