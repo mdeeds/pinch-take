@@ -18,6 +18,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     this._phase = 0;
     this._framesInTick = -1; // -1 means not currently in a tick
     this._bpm = 120;
+    this._level = 0.5;
 
     // Duration of the tick sound in seconds.
     this.TICK_DURATION_SEC = 0.05;
@@ -40,6 +41,9 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       case 'set':
         this._bpm = detail.tempo || this._bpm;
         this._beatsPerMeasure = detail.beatsPerMeasure || this._beatsPerMeasure;
+        if (detail.level !== undefined) {
+          this._level = detail.level;
+        }
         break;
       case 'stop':
         this._isPlaying = false;
@@ -137,7 +141,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       // If we are currently generating a tick sound.
       if (this._framesInTick >= 0 && this._framesInTick < tickDurationFrames) {
         // Generate the sine wave sample.
-        outputChannel[i] = this.getSineSample(this._currentTickFrequency) * 0.5; // Reduce volume
+        outputChannel[i] = this.getSineSample(this._currentTickFrequency) * this._level;
         this._framesInTick++;
       } else {
         // Output silence.

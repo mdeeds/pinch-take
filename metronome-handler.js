@@ -13,7 +13,7 @@ export class MetronomeHandler {
   #audioCtx;
 
   state = new State({
-    onWhenRecording: true, onWhenPlaying: true
+    onWhenRecording: true, onWhenPlaying: true, level: 0.5
   }, null);
 
   /** @type {SongContext} */
@@ -45,6 +45,7 @@ export class MetronomeHandler {
     metronome.#metronomeNode = new AudioWorkletNode(metronome.#audioCtx, 'metronome-processor');
     metronome.connect(audioCtx.destination);
     songContext.onSongTimeChanged(metronome.updateTempo.bind(metronome));
+    metronome.state.addFieldCallback('level', () => metronome.updateTempo());
     return metronome;
   }
 
@@ -71,12 +72,15 @@ export class MetronomeHandler {
   }
 
   updateTempo() {
+    const detail = {
+      tempo: this.#songContext.tempo,
+      beatsPerMeasure: this.#songContext.beatsPerMeasure,
+      level: this.state.getNumber('level'),
+    };
+    console.log(JSON.stringify(detail));
     this.#metronomeNode.port.postMessage({
       method: 'set',
-      detail: {
-        tempo: this.#songContext.tempo,
-        beatsPerMeasure: this.#songContext.beatsPerMeasure,
-      }
+      detail
     });
   }
 
@@ -95,6 +99,7 @@ export class MetronomeHandler {
       detail: {
         tempo: this.#songContext.tempo,
         beatsPerMeasure: this.#songContext.beatsPerMeasure,
+        level: this.state.getNumber('level'),
       }
     });
     this.#metronomeNode.port.postMessage({ method: 'start', detail: { audioContextTimeS } });

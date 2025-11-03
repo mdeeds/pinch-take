@@ -29,6 +29,10 @@ export class MetronomeTool {
           type: 'BOOLEAN',
           description: 'Whether the metronome is active during playback. Defaults to true.',
         },
+        level: {
+          type: 'NUMBER',
+          description: 'The volume of the metronome, from 0.0 (silent) to 1.0 (full). Defaults to 0.5.',
+        },
       },
       required: [],
     },
@@ -54,6 +58,9 @@ export class MetronomeTool {
     }
     if (args.onWhenPlaying !== undefined) {
       this.#metronome.state.set('onWhenPlaying', args.onWhenPlaying);
+    }
+    if (args.level !== undefined) {
+      this.#metronome.state.set('level', args.level);
     }
     const responseText = `Metronome updated.`;
     return MakeToolResponse(this, responseText);
