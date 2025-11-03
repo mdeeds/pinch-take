@@ -139,7 +139,7 @@ export class TapeDeck {
   /** @type {number} */
   #punchOutFrame = -1;
 
-  /** @type {number} */
+  /** The index of the armed track. -1 if no track is armed. @type {number} */
   #armedTrack = -1;
 
   /** @type {((event: TransportEvent) => void)[]} */
@@ -172,6 +172,7 @@ export class TapeDeck {
    * @param {(event: TransportEvent) => void} callback
    */
   onTransportEvent(callback) {
+    console.log('Adding transport callback.');
     this.#onTransportEventCallbacks.push(callback);
   }
 
@@ -217,14 +218,19 @@ export class TapeDeck {
     if (this.#punchInFrame !== -1 && this.#armedTrack === -1) {
       console.warn('Punch-in time set but no track is armed.');
     }
-
     const isRecording = this.#punchInFrame !== -1 && this.#armedTrack !== -1;
+    if (!isRecording) {
+      this.#armedTrack = -1;
+    }
     if (isRecording && loopStartS !== undefined) {
       console.warn('Looping is not supported during recording. Ignoring loop parameters.');
     }
     // Start new source nodes for each track.
     this.#disconnect();
     for (let i = 0; i < this.#tracks.length; i++) {
+      if (i == this.#armedTrack) {
+        continue;
+      }
       const track = this.#tracks[i];
       const durationS = stopTimeS >= 0 ? stopTimeS - startTimeS : undefined;
       const sourceNode = this.#audioCtx.createBufferSource();

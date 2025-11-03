@@ -4,7 +4,7 @@ import { GeminiFileManager } from './gemini-file-manager.js';
 import { GeminiChat } from './gemini-chat.js';
 import { ChatUI } from './chat-ui.js';
 import { SpeechToText } from './speech-to-text.js';
-import { TextToSpeech } from './text-to-speech.js';
+// import { TextToSpeech } from './text-to-speech.js';
 import { MetronomeTool } from './metronome-tool.js';
 import { SectionTool, SongTool } from './song-tool.js';
 import { SongContext } from './song-context.js';
@@ -83,11 +83,11 @@ async function main() {
   }
 
   const chatUI = new ChatUI(chatHistoryElement);
-  const textToSpeech = new TextToSpeech();
+  // const textToSpeech = new TextToSpeech();
 
   const handleModelMessage = (message) => {
     chatUI.displayMessage(message, 'model-message');
-    textToSpeech.speak(message);
+    // textToSpeech.speak(message);
   };
 
   const fileManager = new GeminiFileManager(apiKey);

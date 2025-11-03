@@ -66,16 +66,20 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       const secondsPerBeat = 60.0 / this._bpm;
       const framesPerBeat = secondsPerBeat * sampleRate;
 
+      console.log(`starting at ${audioContextTimeS}s}`);
       if (currentFrame > startFrame) {
+        console.log('past');
         const framesSinceStart = currentFrame - startFrame;
         const beatsSinceStart = Math.floor(framesSinceStart / framesPerBeat);
         this._beatCount = beatsSinceStart % this._beatsPerMeasure;
         this._nextTickFrame = startFrame + ((beatsSinceStart + 1) * framesPerBeat);
       } else {
+        console.log('future');
         this._beatCount = 0;
         this._nextTickFrame = startFrame;
       }
     } else {
+      console.log('No start frame supplied.');
       this._beatCount = 0;
       this._nextTickFrame = currentFrame; // Start immediately if no time is given
     }

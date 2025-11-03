@@ -27,7 +27,10 @@ export class MetronomeHandler {
   constructor(audioCtx, songContext, tapeDeck) {
     this.#audioCtx = audioCtx;
     this.#songContext = songContext;
-    tapeDeck?.onTransportEvent(this.#handleTransportEvent.bind(this));
+    if (!tapeDeck) {
+      throw new Error('TapeDeck is required.');
+    }
+    tapeDeck.onTransportEvent(this.#handleTransportEvent.bind(this));
   }
 
   /**
@@ -53,6 +56,7 @@ export class MetronomeHandler {
    * @param {TransportEvent} event
    */
   #handleTransportEvent(event) {
+    console.log('Metronome recieved transport event:', event);
     if (event.transportAction === 'play') {
       this.start(event.audioCtxTimeS);
     } else if (event.transportAction === 'stop') {
@@ -88,6 +92,7 @@ export class MetronomeHandler {
    * @param {number} audioContextTimeS
    */
   start(audioContextTimeS) {
+    console.log('Restarting metronome at ACT=' + audioContextTimeS.toFixed(2) + 's');
     if (!this.#metronomeNode) {
       throw new Error('MetronomeProcessor node not initialized.');
     }
