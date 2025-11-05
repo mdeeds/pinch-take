@@ -33,6 +33,7 @@ async function getDefaultAudioInput(audioCtx) {
       echoCancellation: false,
       noiseSuppression: false,
       autoGainControl: false,
+      sampleRate: { exact: audioCtx.sampleRate },
     },
   };
 
@@ -41,6 +42,7 @@ async function getDefaultAudioInput(audioCtx) {
     console.log('Acquired audio stream with constraints:', constraints.audio);
     const audioTrack = stream.getAudioTracks()[0];
     const settings = audioTrack.getSettings();
+    console.log('Audio stream settings:', settings);
     console.log('Audio Context sample rate:', audioCtx.sampleRate);
     console.log('Stream sample rate:', settings.sampleRate);
     if (settings.sampleSize) {

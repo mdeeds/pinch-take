@@ -89,6 +89,7 @@ export class TrackStats {
     this.maxRunningRmsDB = 20 * Math.log10(maxRunningRms);
 
     console.timeEnd('TrackStats');
+    console.log(this);
   }
 }
 
@@ -325,10 +326,12 @@ export class TapeDeck {
   }
 
   #resolveWaitingStops() {
-    for (const resolve of this.#resolveStops) {
+    const stops = this.#resolveStops;
+    console.log('Resolving ' + stops.length + ' stops.');
+    this.#resolveStops = [];
+    for (const resolve of stops) {
       resolve();
     }
-    this.#resolveStops = [];
   }
 
   /**
