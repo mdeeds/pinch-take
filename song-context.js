@@ -11,13 +11,14 @@ export class SectionContext {
   state;
 
   /**
-   * @param {{ name: string; measureCount: number; startTimeS: number; }} args
+   * @param {{ name: string; measureCount: number; startTimeS: number; text?: string; }} args
    */
   constructor(args) {
     this.state = new State({
       name: args.name,
       measureCount: args.measureCount,
       startTimeS: args.startTimeS,
+      text: args.text || '',
       durationS: 0, // Will be calculated
     });
   }
@@ -111,7 +112,7 @@ export class SongContext {
   }
 
   /**
-   * @param {{ name: string; measureCount: number; }} sectionArgs
+   * @param {{ name: string; measureCount: number; text?: string; }} sectionArgs
    */
   addSection(sectionArgs) {
     const section = new SectionContext({
@@ -123,6 +124,33 @@ export class SongContext {
     this.state.set('songLengthS', this.songLengthS + section.state.getNumber('durationS'));
     // The `add` method on the StateList will handle adding the child and its data.
     this.state.getList('sections').add(section.state);
+  }
+
+  /**
+   * @param {string} name
+   * @param {{ newName?: string; measureCount?: number; text?: string; }} sectionArgs
+   */
+  editSection(name, { newName, measureCount, text }) {
+    const section = this.getSection(name);
+    if (!section) {
+      throw new Error(`Section "${name}" not found.`);
+    }
+
+    if (newName && newName !== name) {
+      const existing = this.#sections.find(s => s.name === newName);
+      if (existing) {
+        throw new Error(`A section with name "${newName}" already exists.`);
+      }
+      section.state.set('name', newName);
+    }
+
+    if (measureCount && measureCount !== section.measureCount) {
+      section.state.set('measureCount', measureCount);
+    }
+    if (text !== undefined) {
+      section.state.set('text', text);
+    }
+    this.#recalculateSections();
   }
 
   /**

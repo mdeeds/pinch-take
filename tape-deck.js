@@ -2,7 +2,6 @@
 
 import { FileData } from "./gemini-file-manager.js";
 import { GeminiFileManager } from "./gemini-file-manager.js";
-import { MetronomeHandler } from "./metronome-handler.js";
 import { Mixer } from "./mixer.js";
 import { RecordHandler } from "./record-handler.js";
 import { Stateful } from "./stateful.js";
@@ -136,9 +135,12 @@ export class TapeDeck {
   #tapeZeroFrame = -1;
 
   /** @type {number} */
-  #punchInFrame = -1;
+  #punchInTapeFrame = -1;
   /** @type {number} */
-  #punchOutFrame = -1;
+  #punchOutTapeFrame = -1;
+
+  /** @type {number} */
+  #stopTapeFrame = -1;
 
   /** The index of the armed track. -1 if no track is armed. @type {number} */
   #armedTrack = -1;
@@ -210,16 +212,21 @@ export class TapeDeck {
     event.audioCtxTimeS = nowTimeS
     event.tapeTimeS = startTimeS;
 
-    this.#punchInFrame = punchInS !== undefined ? Math.round(punchInS * this.#audioCtx.sampleRate) : -1;
-    this.#punchOutFrame = punchOutS !== undefined ? Math.round(punchOutS * this.#audioCtx.sampleRate) : -1;
+    this.#punchInTapeFrame = punchInS !== undefined ? Math.round(punchInS * this.#audioCtx.sampleRate) : -1;
+    this.#punchOutTapeFrame = punchOutS !== undefined ? Math.round(punchOutS * this.#audioCtx.sampleRate) : -1;
 
     const tapeTimeFrames = Math.round(startTimeS * this.#audioCtx.sampleRate);
     this.#tapeZeroFrame = Math.round(nowTimeS * this.#audioCtx.sampleRate) - tapeTimeFrames;
 
-    if (this.#punchInFrame !== -1 && this.#armedTrack === -1) {
+    this.#stopTapeFrame = -1;
+    if (stopTimeS >= 0 && loopStartS === undefined) {
+      this.#stopTapeFrame = Math.round(stopTimeS * this.#audioCtx.sampleRate);
+    }
+
+    if (this.#punchInTapeFrame !== -1 && this.#armedTrack === -1) {
       console.warn('Punch-in time set but no track is armed.');
     }
-    const isRecording = this.#punchInFrame !== -1 && this.#armedTrack !== -1;
+    const isRecording = this.#punchInTapeFrame !== -1 && this.#armedTrack !== -1;
     if (!isRecording) {
       this.#armedTrack = -1;
     }
@@ -245,15 +252,6 @@ export class TapeDeck {
         sourceNode.loopEnd = stopTimeS;
       }
 
-      if (i === 0 && stopTimeS >= 0 && !sourceNode.loop) {
-        sourceNode.onended = () => {
-          // Only resolve if the transport is still considered playing.
-          // If stop() was called, tapeZeroFrame would be -1.
-          if (this.#tapeZeroFrame !== -1) {
-            this.stop();
-          }
-        };
-      }
       track.sourceNode = sourceNode;
     }
 
@@ -314,8 +312,8 @@ export class TapeDeck {
     event.audioCtxTimeS = nowTimeS;
     event.tapeTimeS = tapeTimeS;
     this.#tapeZeroFrame = -1;
-    this.#punchInFrame = -1;
-    this.#punchOutFrame = -1;
+    this.#punchInTapeFrame = -1;
+    this.#punchOutTapeFrame = -1;
     for (const callback of this.#onTransportEventCallbacks) {
       callback(event);
     }
@@ -391,27 +389,32 @@ export class TapeDeck {
    */
   #handleSamples(data) {
     // Only record if a track is armed, the tape is rolling, and we have a punch-in time.
-    if (this.#armedTrack < 0 || this.#tapeZeroFrame <= 0 || this.#punchInFrame < 0) {
+    if (this.#armedTrack < 0 || this.#tapeZeroFrame <= 0 || this.#punchInTapeFrame < 0) {
       return;
     }
 
     // Calculate the start frame for this sample batch in "tape time"
-    let trackStartFrame = data.startFrame - this.#tapeZeroFrame;
-    const trackEndFrame = trackStartFrame + data.samples.length;
+    let startTapeFrame = data.startFrame - this.#tapeZeroFrame;
+    const endTapeFrame = startTapeFrame + data.samples.length;
+
+    // If we have a stop time, check if we've passed it.
+    if (this.#stopTapeFrame >= 0 && endTapeFrame >= this.#stopTapeFrame) {
+      this.stop();
+    }
 
     // Don't record samples from before the punch-in point or after the punch-out point.
-    if (trackEndFrame < this.#punchInFrame) {
+    if (endTapeFrame < this.#punchInTapeFrame) {
       return;
     }
-    if (this.#punchOutFrame >= 0 && trackStartFrame > this.#punchOutFrame) {
+    if (this.#punchOutTapeFrame >= 0 && startTapeFrame > this.#punchOutTapeFrame) {
       return;
     }
     let dataSamples = data.samples;
-    if (trackStartFrame < 0) {
-      dataSamples = data.samples.subarray(-trackStartFrame);
-      trackStartFrame = 0;
+    if (startTapeFrame < 0) {
+      dataSamples = data.samples.subarray(-startTapeFrame);
+      startTapeFrame = 0;
     }
-    this.#setBufferData(dataSamples, 0, this.#armedTrack, trackStartFrame);
+    this.#setBufferData(dataSamples, 0, this.#armedTrack, startTapeFrame);
   }
 
   /**

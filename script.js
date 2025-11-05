@@ -6,7 +6,7 @@ import { ChatUI } from './chat-ui.js';
 // import { SpeechToText } from './speech-to-text.js';
 // import { TextToSpeech } from './text-to-speech.js';
 import { MetronomeTool } from './metronome-tool.js';
-import { SectionTool, SongTool } from './song-tool.js';
+import { EditSectionTool, SectionTool, SongTool } from './song-tool.js';
 import { SongContext } from './song-context.js';
 import { TapeDeck } from './tape-deck.js';
 import { MetronomeHandler } from './metronome-handler.js';
@@ -100,6 +100,8 @@ async function main() {
   geminiChat.addTool(songTool);
   const sectionTool = new SectionTool(songContext);
   geminiChat.addTool(sectionTool);
+  const editSectionTool = new EditSectionTool(songContext);
+  geminiChat.addTool(editSectionTool);
 
   /**
    * Updates the state display area with the current JSON from GeminiChat.

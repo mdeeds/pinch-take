@@ -29,6 +29,10 @@ export class SectionTool {
           type: 'INTEGER',
           description: 'The number of measures in this section.',
         },
+        text: {
+          type: 'STRING',
+          description: 'Free-form text for the section, like lyrics or chords. Line breaks are preserved.',
+        },
       },
       required: ['name', 'measureCount'],
     },
@@ -57,6 +61,59 @@ export class SectionTool {
       console.error('Error adding section:', error);
       return MakeToolResponse(this, `Error adding section: ${error.message}`);
     }
+  }
+}
+
+/**
+ * The SongTool implementation for editing sections of a song.
+ * @implements {Tool}
+ */
+export class EditSectionTool {
+  /** @type {FunctionDeclaration} */
+  declaration = {
+    name: 'edit_song_section',
+    description: 'Edits an existing section of the song, like changing its name or length.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        name: {
+          type: 'STRING',
+          description: 'The current name of the section to edit.',
+        },
+        newName: {
+          type: 'STRING',
+          description: 'The new name for the section.',
+        },
+        measureCount: {
+          type: 'INTEGER',
+          description: 'The new number of measures for this section.',
+        },
+        text: {
+          type: 'STRING',
+          description: 'The new free-form text for the section, like lyrics or chords. Line breaks are preserved.',
+        },
+      },
+      required: ['name'],
+    },
+  };
+
+  /** @type {SongContext} */
+  #songContext;
+
+  /**
+   * @param {SongContext} songContext The song context to modify.
+   */
+  constructor(songContext) {
+    this.#songContext = songContext;
+  }
+
+  /**
+   * @param {{name: string, newName?: string, measureCount?: number, text?: string}} args
+   * @returns {Promise<FunctionResponse>}
+   */
+  async run(args) {
+    this.#songContext.editSection(args.name, { newName: args.newName, measureCount: args.measureCount, text: args.text });
+    return MakeToolResponse(this, `Successfully edited section "${args.newName || args.name}".`);
   }
 }
 
