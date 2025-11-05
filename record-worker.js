@@ -10,6 +10,7 @@ class RecordProcessor extends AudioWorkletProcessor {
     this.framesCollected = 0;
     this.batchStartFrame = 0;
     this.batchStartTime = 0;
+    this.tmpBuffer = new Float32Array(128);
   }
 
   /**
@@ -22,6 +23,20 @@ class RecordProcessor extends AudioWorkletProcessor {
 
     if (!inputChannel) {
       return true;
+    }
+
+    // Sum everything down to Mono
+    this.tmpBuffer.set(inputChannel);
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i];
+      for (let j = 0; j < input.length; j++) {
+        const channel = input[j];
+        if (i !== 0 || j !== 0) {
+          for (let k = 0; k < channel.length; ++k) {
+            this.tmpBuffer[k] += channel[k];
+          }
+        }
+      }
     }
 
     if (this.framesCollected === 0) {
