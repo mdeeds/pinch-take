@@ -92,7 +92,7 @@ export class MetronomeHandler {
    * @param {number} audioContextTimeS
    */
   start(audioContextTimeS) {
-    console.log('Restarting metronome at ACT=' + audioContextTimeS.toFixed(2) + 's');
+    console.log('Restarting metronome at ACT=' + audioContextTimeS.toFixed(3) + 's');
     if (!this.#metronomeNode) {
       throw new Error('MetronomeProcessor node not initialized.');
     }

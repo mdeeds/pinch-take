@@ -13,7 +13,9 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     super();
     this._isPlaying = false;
     this._beatsPerMeasure = 4;
+    // The beat number for the *next* tick.  0 = downbeat
     this._beatCount = 0;
+    // The frame number where the next tick will start
     this._nextTickFrame = 0;
     this._phase = 0;
     this._framesInTick = -1; // -1 means not currently in a tick
@@ -66,13 +68,15 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       const secondsPerBeat = 60.0 / this._bpm;
       const framesPerBeat = secondsPerBeat * sampleRate;
 
-      console.log(`starting at ${audioContextTimeS}s}`);
+      console.log(`starting at ${audioContextTimeS.toFixed(3)}s`);
       if (currentFrame > startFrame) {
         console.log('past');
         const framesSinceStart = currentFrame - startFrame;
-        const beatsSinceStart = Math.floor(framesSinceStart / framesPerBeat);
-        this._beatCount = beatsSinceStart % this._beatsPerMeasure;
-        this._nextTickFrame = startFrame + ((beatsSinceStart + 1) * framesPerBeat);
+        // Round down to find the beat we missed
+        const numberOfBeatsMissed = Math.floor(framesSinceStart / framesPerBeat) + 1;
+        // Add one because this is the next beat
+        this._beatCount = numberOfBeatsMissed % this._beatsPerMeasure;
+        this._nextTickFrame = startFrame + (numberOfBeatsMissed * framesPerBeat);
       } else {
         console.log('future');
         this._beatCount = 0;

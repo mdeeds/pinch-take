@@ -3,7 +3,7 @@
 import { GeminiFileManager } from './gemini-file-manager.js';
 import { GeminiChat } from './gemini-chat.js';
 import { ChatUI } from './chat-ui.js';
-import { SpeechToText } from './speech-to-text.js';
+// import { SpeechToText } from './speech-to-text.js';
 // import { TextToSpeech } from './text-to-speech.js';
 import { MetronomeTool } from './metronome-tool.js';
 import { SectionTool, SongTool } from './song-tool.js';
@@ -145,10 +145,10 @@ async function main() {
     chatInputElement.value += ' ' + transcript.trim();
   };
 
-  const speechToText = new SpeechToText(handleSpeechResult);
+  //  const speechToText = new SpeechToText(handleSpeechResult);
 
   micButton.addEventListener('click', async () => {
-    speechToText.start();
+    // speechToText.start();
     micButton.textContent = '👂'; // Change icon to indicate listening
     micButton.style.backgroundColor = '#28a745'; // Green color for active state
 
