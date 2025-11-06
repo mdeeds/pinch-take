@@ -18,7 +18,7 @@ export class TapeDeckTool {
   /** @type {FunctionDeclaration} */
   declaration = {
     name: 'transport_control',
-    description: 'Controls the tape deck playback.',
+    description: 'Controls the tape deck playback.  Playback and recording is always proceeded by a 1-bar count-in.',
     parameters: {
       type: 'OBJECT',
       properties: {

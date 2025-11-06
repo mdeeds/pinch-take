@@ -169,7 +169,7 @@ async function main() {
       const mixerTool = new MixerTool(mixer);
       geminiChat.addTool(mixerTool);
 
-      const tapeDeck = new TapeDeck(audioCtx, recorder, mixer, fileManager);
+      const tapeDeck = new TapeDeck(audioCtx, recorder, mixer, fileManager, songContext);
       geminiChat.addState('tapeDeck', tapeDeck);
       const tapeDeckTool = new TapeDeckTool(tapeDeck, songContext);
       geminiChat.addTool(tapeDeckTool);

@@ -4,6 +4,7 @@ import { FileData } from "./gemini-file-manager.js";
 import { GeminiFileManager } from "./gemini-file-manager.js";
 import { Mixer } from "./mixer.js";
 import { RecordHandler } from "./record-handler.js";
+import { SongContext } from "./song-context.js";
 import { Stateful } from "./stateful.js";
 
 export class TransportEvent {
@@ -131,6 +132,9 @@ export class TapeDeck {
   /** @type {GeminiFileManager} */
   #fileManager;
 
+  /** @type {SongContext} */
+  #songContext;
+
   /** @type {number} */
   #tapeZeroFrame = -1;
 
@@ -162,12 +166,14 @@ export class TapeDeck {
    * @param {RecordHandler} recorder
    * @param {Mixer} mixer
    * @param {GeminiFileManager} fileManager
+   * @param {SongContext} songContext
    */
-  constructor(audioCtx, recorder, mixer, fileManager) {
+  constructor(audioCtx, recorder, mixer, fileManager, songContext) {
     this.#audioCtx = audioCtx;
     this.#recorder = recorder;
     this.#mixer = mixer;
     this.#fileManager = fileManager;
+    this.#songContext = songContext;
     this.#recorder.addSampleCallback(this.#handleSamples.bind(this));
   }
 
@@ -206,17 +212,24 @@ export class TapeDeck {
    */
   startPlayback(startTimeS, stopTimeS = -1,
     { punchInS, punchOutS } = {}, { loopStartS } = {}) {
-    const nowTimeS = this.#audioCtx.currentTime;
+    const metronomeDelayS = 0.1; // 100ms delay for metronome to react.
+    const barDurationS = this.#songContext.beatsPerMeasure * 60 / this.#songContext.tempo;
+    const countInS = barDurationS;
+
+    const transportEventTimeS = this.#audioCtx.currentTime + metronomeDelayS;
+    const playbackStartTimeS = transportEventTimeS + countInS;
+
     const event = new TransportEvent();
     event.transportAction = 'play';
-    event.audioCtxTimeS = nowTimeS
+    // The event is for the downbeat of the count-in.
+    event.audioCtxTimeS = transportEventTimeS;
     event.tapeTimeS = startTimeS;
 
     this.#punchInTapeFrame = punchInS !== undefined ? Math.round(punchInS * this.#audioCtx.sampleRate) : -1;
     this.#punchOutTapeFrame = punchOutS !== undefined ? Math.round(punchOutS * this.#audioCtx.sampleRate) : -1;
 
     const tapeTimeFrames = Math.round(startTimeS * this.#audioCtx.sampleRate);
-    this.#tapeZeroFrame = Math.round(nowTimeS * this.#audioCtx.sampleRate) - tapeTimeFrames;
+    this.#tapeZeroFrame = Math.round(playbackStartTimeS * this.#audioCtx.sampleRate) - tapeTimeFrames;
 
     this.#stopTapeFrame = -1;
     if (stopTimeS >= 0 && loopStartS === undefined) {
@@ -244,7 +257,7 @@ export class TapeDeck {
       const sourceNode = this.#audioCtx.createBufferSource();
       sourceNode.buffer = track.buffer;
       sourceNode.connect(track.gainNode);
-      sourceNode.start(nowTimeS, startTimeS, durationS);
+      sourceNode.start(playbackStartTimeS, startTimeS, durationS);
 
       if (loopStartS !== undefined && stopTimeS >= 0 && !isRecording) {
         sourceNode.loop = true;
