@@ -5,6 +5,7 @@ import { GeminiFileManager } from "./gemini-file-manager.js";
 import { Mixer } from "./mixer.js";
 import { RecordHandler } from "./record-handler.js";
 import { SongContext } from "./song-context.js";
+import { State } from "./state.js";
 import { Stateful } from "./stateful.js";
 
 export class TransportEvent {
@@ -96,23 +97,22 @@ export class TrackStats {
 class Track {
   /** @type {AudioBuffer} */
   buffer;
-  /** @type {AudioBufferSourceNode | null} */
-  sourceNode = null;
-  /** @type {TrackInfo} */
-  info;
+  /** @type {State} */
+  state;
   /** @type {GainNode} */
   gainNode;
-  /** @type {TrackStats | null} */
-  stats = null;
+  /** @type {AudioBufferSourceNode | null} */
+  sourceNode = null;
 
   /**
    * @param {AudioBuffer} buffer
    * @param {TrackInfo} info
    * @param {GainNode} gainNode
+   * @param {State} state
    */
-  constructor(buffer, info, gainNode) {
+  constructor(buffer, info, gainNode, state) {
+    this.state = state;
     this.buffer = buffer;
-    this.info = info;
     this.gainNode = gainNode;
   }
 }
@@ -146,9 +146,6 @@ export class TapeDeck {
   /** @type {number} */
   #stopTapeFrame = -1;
 
-  /** The index of the armed track. -1 if no track is armed. @type {number} */
-  #armedTrack = -1;
-
   /** @type {((event: TransportEvent) => void)[]} */
   #onTransportEventCallbacks = [];
 
@@ -157,6 +154,9 @@ export class TapeDeck {
 
   /** @type {Track[]} */
   #tracks = [];
+
+  /** @type {State} */
+  state;
 
   static MAX_TRACK_LENGTH_S = 60 * 5; // 5 minutes
 
@@ -175,6 +175,14 @@ export class TapeDeck {
     this.#fileManager = fileManager;
     this.#songContext = songContext;
     this.#recorder.addSampleCallback(this.#handleSamples.bind(this));
+    this.state = new State({
+      armedTrack: -1,
+    });
+    this.state.addList('tracks');
+  }
+
+  get armedTrack() {
+    return this.state.getNumber('armedTrack');
   }
 
   /**
@@ -236,12 +244,12 @@ export class TapeDeck {
       this.#stopTapeFrame = Math.round(stopTimeS * this.#audioCtx.sampleRate);
     }
 
-    if (this.#punchInTapeFrame !== -1 && this.#armedTrack === -1) {
+    if (this.#punchInTapeFrame !== -1 && this.armedTrack === -1) {
       console.warn('Punch-in time set but no track is armed.');
     }
-    const isRecording = this.#punchInTapeFrame !== -1 && this.#armedTrack !== -1;
+    const isRecording = this.#punchInTapeFrame !== -1 && this.armedTrack !== -1;
     if (!isRecording) {
-      this.#armedTrack = -1;
+      this.state.set('armedTrack', -1);
     }
     if (isRecording && loopStartS !== undefined) {
       console.warn('Looping is not supported during recording. Ignoring loop parameters.');
@@ -249,21 +257,22 @@ export class TapeDeck {
     // Start new source nodes for each track.
     this.#disconnect();
     for (let i = 0; i < this.#tracks.length; i++) {
-      if (i == this.#armedTrack) {
+      if (i == this.armedTrack) {
         continue;
       }
       const track = this.#tracks[i];
-      const durationS = stopTimeS >= 0 ? stopTimeS - startTimeS : undefined;
+      let durationS = stopTimeS >= 0 ? stopTimeS - startTimeS : undefined;
       const sourceNode = this.#audioCtx.createBufferSource();
       sourceNode.buffer = track.buffer;
       sourceNode.connect(track.gainNode);
-      sourceNode.start(playbackStartTimeS, startTimeS, durationS);
-
       if (loopStartS !== undefined && stopTimeS >= 0 && !isRecording) {
         sourceNode.loop = true;
         sourceNode.loopStart = loopStartS;
         sourceNode.loopEnd = stopTimeS;
+        durationS = undefined;
       }
+      sourceNode.start(playbackStartTimeS, startTimeS, durationS);
+      console.log('Playing: ', sourceNode);
 
       track.sourceNode = sourceNode;
     }
@@ -331,8 +340,10 @@ export class TapeDeck {
       callback(event);
     }
     this.#resolveWaitingStops();
-    for (const track of this.#tracks) {
-      track.stats = new TrackStats(track.buffer.getChannelData(0), this.#audioCtx.sampleRate);
+    const armedTrackNumber = this.state.getNumber('armedTrack');
+    if (armedTrackNumber >= 0 && armedTrackNumber < this.#tracks.length) {
+      const track = this.#tracks[armedTrackNumber];
+      track.state.set('stats', new TrackStats(track.buffer.getChannelData(0), this.#audioCtx.sampleRate));
     }
   }
 
@@ -356,7 +367,7 @@ export class TapeDeck {
     while (this.#tracks.length <= trackNumber) {
       this.#addTrack();
     }
-    this.#armedTrack = trackNumber;
+    this.state.set('armedTrack', trackNumber);
     console.log(`Track ${trackNumber} armed.`);
     return trackNumber;
   }
@@ -370,7 +381,7 @@ export class TapeDeck {
     if (trackNumber < 0 || trackNumber >= this.#tracks.length) {
       throw new Error(`Invalid track number: ${trackNumber}`);
     }
-    this.#tracks[trackNumber].info.name = name;
+    this.#tracks[trackNumber].state.set('name', name);
   }
 
   /**
@@ -381,7 +392,7 @@ export class TapeDeck {
     if (trackNumber < 0 || trackNumber >= this.#tracks.length) {
       throw new Error(`Invalid track number: ${trackNumber}`);
     }
-    return this.#tracks[trackNumber].info.name;
+    return this.#tracks[trackNumber].state.get('name');
   }
 
   #addTrack() {
@@ -391,9 +402,14 @@ export class TapeDeck {
     const buffer = this.#audioCtx.createBuffer(1, trackLength, this.#audioCtx.sampleRate);
     const gainNode = this.#audioCtx.createGain();
     this.#mixer.patch(gainNode, newTrackIndex);
-    const trackInfo = { trackNumber: newTrackIndex, name: '' };
-    this.#tracks.push(new Track(buffer, trackInfo, gainNode));
-
+    const trackInfo = { trackNumber: newTrackIndex, name: "" };
+    const trackState = new State({
+      info: trackInfo,
+      stats: null,
+    });
+    const track = new Track(buffer, trackInfo, gainNode, trackState);
+    this.#tracks.push(track);
+    this.state.getList('tracks').add(trackState);
     // Note: We don't create the source node here because they are one-shot and must be created at playback time.
   }
 
@@ -401,8 +417,9 @@ export class TapeDeck {
    * @param {import('./record-handler.js').SampleData} data
    */
   #handleSamples(data) {
+    const armedTrack = this.state.getNumber('armedTrack');
     // Only record if a track is armed, the tape is rolling, and we have a punch-in time.
-    if (this.#armedTrack < 0 || this.#tapeZeroFrame <= 0 || this.#punchInTapeFrame < 0) {
+    if (armedTrack < 0 || this.#tapeZeroFrame <= 0 || this.#punchInTapeFrame < 0) {
       return;
     }
 
@@ -427,7 +444,7 @@ export class TapeDeck {
       dataSamples = data.samples.subarray(-startTapeFrame);
       startTapeFrame = 0;
     }
-    this.#setBufferData(dataSamples, 0, this.#armedTrack, startTapeFrame);
+    this.#setBufferData(dataSamples, 0, armedTrack, startTapeFrame);
   }
 
   /**
@@ -448,18 +465,9 @@ export class TapeDeck {
   }
 
   /**
-   * @returns {{trackCount: number, armedTrack: number, trackInfo: TrackInfo[], trackStats: (TrackStats | null)[]}}
+   * @returns {any}
    */
   getJSON() {
-    for (const track of this.#tracks) {
-      track.stats = new TrackStats(track.buffer.getChannelData(0), this.#audioCtx.sampleRate);
-    }
-
-    return {
-      trackCount: this.#tracks.length,
-      armedTrack: this.#armedTrack,
-      trackInfo: this.#tracks.map(t => t.info),
-      trackStats: this.#tracks.map(t => t.stats),
-    };
+    return this.state.getJSON();
   }
 }
