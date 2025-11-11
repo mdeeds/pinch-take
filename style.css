@@ -29,6 +29,15 @@ h1 {
   border: 1px solid #dddfe2;
   border-radius: 8px;
   padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#json-song-chart {
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 #chat-container {

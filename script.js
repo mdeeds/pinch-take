@@ -110,8 +110,7 @@ async function main() {
     console.log('updateStateDisplay');
     if (!songChartContainer) return;
     const state = geminiChat.getJSON();
-    // Using <pre> and <code> for nice formatting of the JSON string
-    songChartContainer.innerHTML = `<pre><code>${JSON.stringify(state, null, 2)}</code></pre>`;
+    songChartContainer.innerHTML = `<div id="json-song-chart">${JSON.stringify(state, null, 2)}</div>`;
   };
   songContext.state.addBroadCallback(updateStateDisplay);
 
@@ -167,12 +166,14 @@ async function main() {
       const mixer = new Mixer(audioCtx);
       geminiChat.addState('mixer', mixer);
       const mixerTool = new MixerTool(mixer);
+      mixer.state.addBroadCallback(updateStateDisplay);
       geminiChat.addTool(mixerTool);
 
       const tapeDeck = new TapeDeck(audioCtx, recorder, mixer, fileManager, songContext);
       geminiChat.addState('tapeDeck', tapeDeck);
       const tapeDeckTool = new TapeDeckTool(tapeDeck, songContext);
       geminiChat.addTool(tapeDeckTool);
+      tapeDeck.state.addBroadCallback(updateStateDisplay);
       const trackInfoTool = new TrackInfoTool(tapeDeck);
       geminiChat.addTool(trackInfoTool);
 
@@ -181,6 +182,7 @@ async function main() {
       const metronomeHandler = await MetronomeHandler.create(
         audioCtx, songContext, tapeDeck);
       geminiChat.addState('metronome', metronomeHandler);
+      metronomeHandler.state.addBroadCallback(updateStateDisplay);
       const metronomeTool = new MetronomeTool(metronomeHandler);
       geminiChat.addTool(metronomeTool);
       console.log('TapeDeck initialized and connected to default I/O.');
@@ -189,6 +191,8 @@ async function main() {
       console.error('Failed to initialize audio components:', err);
     }
   });
+
+  await sectionTool.run({ name: 'Intro', measureCount: 4 })
 }
 
 main();
