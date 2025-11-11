@@ -1,6 +1,7 @@
 // @ts-check
 
 import { ReverbEffect } from './reverb.js';
+import { State } from './state.js';
 import { Stateful } from './stateful.js';
 
 /**
@@ -19,6 +20,8 @@ class Channel {
   #panner;
   /** @type {GainNode} */
   #reverbSend;
+  /** @type {State} */
+  state;
 
   /**
    * @param {AudioContext} audioCtx The audio context.
@@ -31,7 +34,7 @@ class Channel {
     this.#fader = this.#audioCtx.createGain();
     this.#panner = this.#audioCtx.createStereoPanner();
     this.#reverbSend = this.#audioCtx.createGain();
-    this.#reverbSend.gain.value = 0; // Default to no reverb send
+    this.#reverbSend.gain.value = 0; // Default to no reverb send (-Infinity dB)
 
     // The signal flow for a channel is: source -> input -> fader -> panner -> mixer master out
     this.#input.connect(this.#fader);
@@ -39,6 +42,26 @@ class Channel {
     // Post-fader send to the reverb
     this.#fader.connect(this.#reverbSend);
     this.#reverbSend.connect(reverbInput);
+
+    this.state = new State({
+      volume: 0, // 0 dB
+      pan: 0,
+      reverbSend: -Infinity,
+    });
+
+    this.state.addFieldCallback('volume', (/** @type {number} */ volume) => {
+      const gain = Math.pow(10, volume / 20);
+      this.#fader.gain.setTargetAtTime(gain, this.#audioCtx.currentTime, 0.01);
+    });
+
+    this.state.addFieldCallback('pan', (/** @type {number} */ pan) => {
+      this.#panner.pan.setTargetAtTime(pan, this.#audioCtx.currentTime, 0.01);
+    });
+
+    this.state.addFieldCallback('reverbSend', (/** @type {number} */ reverbSend) => {
+      const gain = reverbSend <= -Infinity ? 0 : Math.pow(10, reverbSend / 20);
+      this.#reverbSend.gain.setTargetAtTime(gain, this.#audioCtx.currentTime, 0.01);
+    });
   }
 
   /**
@@ -61,33 +84,16 @@ class Channel {
    * @param {{ volume?: number, pan?: number, reverbSend?: number }} settings
    */
   set(settings) {
-    if (settings.volume !== undefined) {
-      // Convert dB to linear gain value. 0dB = 1.0, -6dB ~= 0.5
-      const gain = Math.pow(10, settings.volume / 20);
-      this.#fader.gain.setTargetAtTime(gain, this.#audioCtx.currentTime, 0.01);
-    }
-    if (settings.pan !== undefined) {
-      this.#panner.pan.setTargetAtTime(settings.pan, this.#audioCtx.currentTime, 0.01);
-    }
-    if (settings.reverbSend !== undefined) {
-      // Convert dB to linear gain.
-      const gain = Math.pow(10, settings.reverbSend / 20);
-      this.#reverbSend.gain.setTargetAtTime(gain, this.#audioCtx.currentTime, 0.01);
-    }
+    if (settings.volume !== undefined) this.state.set('volume', settings.volume);
+    if (settings.pan !== undefined) this.state.set('pan', settings.pan);
+    if (settings.reverbSend !== undefined) this.state.set('reverbSend', settings.reverbSend);
   }
 
   /**
    * Returns a JSON-serializable object representing the channel's state.
-   * @returns {{volume: number, pan: number, reverbSend: number}}
    */
   getJSON() {
-    // Convert linear gain back to dB. Handle gain=0 case to avoid -Infinity.
-    const faderGain = this.#fader.gain.value;
-    const volume = faderGain <= 0 ? -Infinity : 20 * Math.log10(faderGain);
-    const pan = this.#panner.pan.value;
-    const reverbSendGain = this.#reverbSend.gain.value;
-    const reverbSend = reverbSendGain <= 0 ? -Infinity : 20 * Math.log10(reverbSendGain);
-    return { volume, pan, reverbSend };
+    return this.state.getJSON();
   }
 }
 
@@ -105,6 +111,8 @@ export class Mixer {
   #master;
   /** @type {ReverbEffect} */
   #reverb;
+  /** @type {State} */
+  state;
 
   /**
    * @param {AudioContext} audioCtx The audio context.
@@ -117,6 +125,14 @@ export class Mixer {
     this.#reverb = new ReverbEffect(this.#audioCtx, 2.0);
     this.#reverb.connect(this.#master);
     this.#master.connect(this.#audioCtx.destination);
+
+    this.state = new State({
+      masterVolume: 0, // 0 dB
+    });
+    this.state.addList('channels');
+    this.state.addFieldCallback('masterVolume', (/** @type {number} */ volume) => {
+      this.#master.gain.value = Math.pow(10, volume / 20);
+    });
   }
 
   /**
@@ -145,6 +161,7 @@ export class Mixer {
     const channel = new Channel(this.#audioCtx, this.#reverb.inputNode);
     channel.connect(this.#master);
     this.#channels.push(channel);
+    this.state.getList('channels').add(channel.state);
   }
 
   /**
@@ -162,15 +179,8 @@ export class Mixer {
   /**
    * Returns a JSON-serializable object representing the mixer's state,
    * including the master volume and the state of all its channels.
-   * @returns {{masterVolume: number, channels: {volume: number, pan: number, reverbSend: number}[]}}
    */
   getJSON() {
-    const gain = this.#master.gain.value;
-    const masterVolume = gain > 0 ? 20 * Math.log10(gain) : -Infinity;
-
-    return {
-      masterVolume,
-      channels: this.#channels.map(channel => channel.getJSON())
-    };
+    return this.state.getJSON();
   }
 }
